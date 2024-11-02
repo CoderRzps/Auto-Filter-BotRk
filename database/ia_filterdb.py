@@ -1,7 +1,7 @@
 import logging
-from struct import pack
 import re
 import base64
+from struct import pack
 from pyrogram.file_id import FileId
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
@@ -9,13 +9,18 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from marshmallow.exceptions import ValidationError
 from info import DATABASE_URL, DATABASE_NAME, COLLECTION_NAME, MAX_BTN
 
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# MongoDB Client Setup
 client = AsyncIOMotorClient(DATABASE_URL)
 db = client[DATABASE_NAME]
 instance = Instance.from_db(db)
 
 @instance.register
 class Media(Document):
-    file_id = fields.StrField(attribute='_id')
+    file_id = fields.StrField(attribute='_id')  # Using file_id as unique identifier
     file_name = fields.StrField(required=True)
     file_size = fields.IntField(required=True)
     caption = fields.StrField(allow_none=True)
@@ -24,13 +29,26 @@ class Media(Document):
         indexes = ('$file_name', )
         collection_name = COLLECTION_NAME
 
+# Save file to database
 async def save_file(media):
-    """Save file in database"""
+    """Save file in database with duplicate handling and error logging"""
 
-    # TODO: Find better way to get same file_id for same media to avoid duplicates
     file_id = unpack_new_file_id(media.file_id)
     file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name))
     file_caption = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.caption))
+
+    # Check and delete old dubbed files if "HD" is present in the name
+    if "hd" in file_name.lower():
+        old_filter = {
+            "file_name": {"$regex": "holl dubbed", "$options": "i"}
+        }
+        old_files = Media.find(old_filter)
+        
+        async for old_file in old_files:
+            await Media.delete_one({"_id": old_file.file_id})
+            logger.info(f"Deleted old dubbed version - {old_file.file_name}")
+
+    # Try to save new HD file
     try:
         file = Media(
             file_id=file_id,
@@ -38,81 +56,75 @@ async def save_file(media):
             file_size=media.file_size,
             caption=file_caption
         )
+        await file.commit()
     except ValidationError:
-        print(f'Saving Error - {file_name}')
+        logger.error(f'Saving Error - {file_name}')
         return 'err'
+    except DuplicateKeyError:      
+        logger.info(f'Already Saved - {file_name}')
+        return 'dup'
     else:
-        try:
-            await file.commit()
-        except DuplicateKeyError:      
-            print(f'Already Saved - {file_name}')
-            return 'dup'
-        else:
-            print(f'Saved - {file_name}')
-            return 'suc'
+        logger.info(f'Saved - {file_name}')
+        return 'suc'
 
+# Search files in database
 async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
     query = query.strip()
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]') 
+    raw_pattern = '.'
+    if query:
+        if ' ' not in query:
+            raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
+        else:
+            raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]') 
+
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
+    except re.error:
         regex = query
 
     filter = {'file_name': regex}
     cursor = Media.find(filter)
-
-    # Sort by recent
-    cursor.sort('$natural', -1)
+    cursor.sort('$natural', -1)  # Sort by recent
 
     if lang:
         lang_files = [file async for file in cursor if lang in file.file_name.lower()]
         files = lang_files[offset:][:max_results]
         total_results = len(lang_files)
         next_offset = offset + max_results
-        if next_offset >= total_results:
-            next_offset = ''
-        return files, next_offset, total_results
-        
-    # Slice files according to offset and max results
+        return files, (next_offset if next_offset < total_results else ''), total_results
+
     cursor.skip(offset).limit(max_results)
-    # Get list of files
     files = await cursor.to_list(length=max_results)
     total_results = await Media.count_documents(filter)
     next_offset = offset + max_results
-    if next_offset >= total_results:
-        next_offset = ''       
-    return files, next_offset, total_results
-    
+    return files, (next_offset if next_offset < total_results else ''), total_results
+
+# Delete files based on query
 async def delete_files(query):
     query = query.strip()
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
-    
+    raw_pattern = '.'
+    if query:
+        if ' ' not in query:
+            raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
+        else:
+            raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
+
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
+    except re.error:
         regex = query
     filter = {'file_name': regex}
     total = await Media.count_documents(filter)
     files = Media.find(filter)
     return total, files
 
+# Get file details by ID
 async def get_file_details(query):
     filter = {'file_id': query}
     cursor = Media.find(filter)
-    filedetails = await cursor.to_list(length=1)
-    return filedetails
+    return await cursor.to_list(length=1)
 
+# Encode file ID
 def encode_file_id(s: bytes) -> str:
     r = b""
     n = 0
@@ -123,13 +135,13 @@ def encode_file_id(s: bytes) -> str:
             if n:
                 r += b"\x00" + bytes([n])
                 n = 0
-
             r += bytes([i])
     return base64.urlsafe_b64encode(r).decode().rstrip("=")
 
+# Unpack file ID
 def unpack_new_file_id(new_file_id):
     decoded = FileId.decode(new_file_id)
-    file_id = encode_file_id(
+    return encode_file_id(
         pack(
             "<iiqq",
             int(decoded.file_type),
@@ -138,4 +150,3 @@ def unpack_new_file_id(new_file_id):
             decoded.access_hash
         )
     )
-    return file_id
