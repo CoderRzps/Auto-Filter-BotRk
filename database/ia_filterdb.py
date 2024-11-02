@@ -38,8 +38,8 @@ async def save_file(media):
     # HD version check
     if "hd" in file_name.lower():
         old_filter = {
-            "file_name": re.compile(re.escape(file_name), re.IGNORECASE), 
-            "file_name": {"$regex": "holl dubbed"}
+            "file_name": re.compile(re.escape(file_name), re.IGNORECASE),
+            "file_name": {"$regex": "dubbed", "$options": "i"}
         }
         old_files = Media.find(old_filter)
 
