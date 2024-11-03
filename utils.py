@@ -273,3 +273,19 @@ async def get_seconds(time_string):
 async def delayed_delete(Bot, message, delay):
     await asyncio.sleep(delay)
     await Bot.delete_messages(chat_id=message.chat.id, message_ids=message.id)
+
+async def check_movie_in_database(movie_name: str) -> bool:  # Line 85
+    """
+    Check if the movie exists in the database.
+    
+    Args:
+        movie_name (str): The name of the movie to check.
+
+    Returns:
+        bool: True if the movie exists, False otherwise.
+    """
+    async with your_database_connection() as db:
+        query = "SELECT COUNT(*) FROM movies WHERE name = $1"
+        result = await db.fetchval(query, movie_name)
+        
+        return result > 0  # Return True if count is greater than
