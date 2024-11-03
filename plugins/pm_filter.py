@@ -34,17 +34,61 @@ async def aks_downloader(bot, query):
         reply_markup=InlineKeyboardMarkup(btn)
     )
 
+
+async def add_movie_to_database(movie_title):
+    try:
+        # Database mein movie ko add karne ki logic
+        movie_collection = db.movies  # Replace with your actual movie collection
+        movie_data = {
+            "title": movie_title,
+            "added_at": datetime.now()
+        }
+        
+        result = await movie_collection.insert_one(movie_data)
+        return result.inserted_id is not None  # Success or failure
+    except Exception as e:
+        print(f"Error adding movie to database: {e}")
+        return False
+
+async def delete_request(movie_title):
+    try:
+        request_collection = db.movie_requests  # Replace with your actual requests collection
+        await request_collection.delete_one({"movie_title": movie_title})
+    except Exception as e:
+        print(f"Error deleting request: {e}")
+
+async def store_request(user_id, movie_title, group_id):
+    try:
+        request_data = {
+            "user_id": user_id,
+            "movie_title": movie_title,
+            "group_id": group_id,
+            "requested_at": datetime.now()
+        }
+        
+        request_collection = db.movie_requests  # Replace with your actual requests collection
+        await request_collection.insert_one(request_data)
+
+        # Add movie to database and delete request if successful
+        movie_added = await add_movie_to_database(movie_title)
+        if movie_added:
+            await delete_request(movie_title)
+        return True
+    except Exception as e:
+        print(f"Error storing request: {e}")
+        return False
+
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
     await message.react(emoji=random.choice(REACTIONS))
     settings = await get_settings(message.chat.id)
     chatid = message.chat.id
     userid = message.from_user.id if message.from_user else None
+    
     if GROUP_FSUB:
         btn = await is_subscribed(client, message, settings['fsub']) if settings.get('is_fsub', IS_FSUB) else None
         if btn:
-            btn.append(
-                [InlineKeyboardButton("Unmute Me 🔕", callback_data=f"unmuteme#{chatid}")]
+            btn.append([InlineKeyboardButton("Unmute Me 🔕", callback_data=f"unmuteme#{chatid}")]
             )
             reply_markup = InlineKeyboardMarkup(btn)
             try:
@@ -60,16 +104,16 @@ async def give_filter(client, message):
                 print(e)
     else:
         pass
+
     if settings["auto_filter"]:
         if not userid:
             await message.reply("I'm not working for anonymous admin!")
             return
+        
         if message.chat.id == SUPPORT_GROUP:
             files, offset, total = await get_search_results(message.text)
             if files:
-                btn = [[
-                    InlineKeyboardButton("Here", url=FILMS_LINK)
-                ]]
+                btn = [[InlineKeyboardButton("Here", url=FILMS_LINK)]]
                 await message.reply_text(f'Total {total} results found in this group', reply_markup=InlineKeyboardMarkup(btn))
             return
             
@@ -79,6 +123,7 @@ async def give_filter(client, message):
         elif '@admin' in message.text.lower() or '@admins' in message.text.lower():
             if await is_check_admin(client, message.chat.id, message.from_user.id):
                 return
+            
             admins = []
             async for member in client.get_chat_members(chat_id=message.chat.id, filter=enums.ChatMembersFilter.ADMINISTRATORS):
                 if not member.user.is_bot:
@@ -96,6 +141,7 @@ async def give_filter(client, message):
                                 await sent_msg.reply_text(f"#Attention\n★ User: {message.from_user.mention}\n★ Group: {message.chat.title}\n\n★ <a href={message.link}>Go to message</a>", disable_web_page_preview=True)
                             except:
                                 pass
+            
             hidden_mentions = (f'[\u2064](tg://user?id={user_id})' for user_id in admins)
             await message.reply_text('Report sent!' + ''.join(hidden_mentions))
             return
@@ -106,10 +152,11 @@ async def give_filter(client, message):
             await message.delete()
             return await message.reply('Links not allowed here!')
         
-        elif '#request' in message.text.lower():
+        elif '/request' in message.text.lower():
             if message.from_user.id in ADMINS:
                 return
-            await client.send_message(LOG_CHANNEL, f"#Request\n★ User: {message.from_user.mention}\n★ Group: {message.chat.title}\n\n★ Message: {re.sub(r'#request', '', message.text.lower())}")
+            movie_title = re.sub(r'/request', '', message.text.lower()).strip()
+            await store_request(message.from_user.id, movie_title, message.chat.id)
             await message.reply_text("Request sent!")
             return
             
@@ -123,6 +170,7 @@ async def give_filter(client, message):
             await message.delete()
         except:
             pass
+
 
 @Client.on_message(filters.private & filters.text)
 async def pm_search(client, message):
