@@ -304,6 +304,21 @@ async def settings(client, message):
     else:
         await message.reply_text('Something went wrong!')
 
+@Client.on_message(filters.command("request"))
+async def request_movie(client, message):
+    movie_name = " ".join(message.command[1:])  # Extract movie name
+    if not movie_name:
+        await message.reply("Please provide a movie name.")
+        return
+
+    # Yahan movie request ka logic implement karein, jaise database me check karna
+    movie_found = await check_movie_in_database(movie_name)
+    if movie_found:
+        await message.reply(f"{movie_name} is available!")
+    else:
+        await message.reply(f"{movie_name} is not available. We will notify you once it's uploaded.")
+        # Add logic to handle notifying when the movie is available
+
 @Client.on_message(filters.command('set_template'))
 async def save_template(client, message):
     userid = message.from_user.id if message.from_user else None
