@@ -341,7 +341,7 @@ async def request_command_handler(client, message):
 
 @Client.on_message(filters.command("movie"))
 async def movie_command_handler(client, message):
-    await handle_movie_command(client, message
+    await handle_movie_command(client, message)
 
 @Client.on_message(filters.command('set_template'))
 async def save_template(client, message):
