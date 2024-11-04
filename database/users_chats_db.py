@@ -49,22 +49,25 @@ class Database:
         'verify_token': "",
         'link': ""
     }
-    
+
     def __init__(self):
-        self.col = mydb.Users
-        self.grp = mydb.Groups
-        self.users = mydb.uersz
+        # MongoDB connection establish karte hain
+        self.client = AsyncIOMotorClient(DATABASE_URL)
+        self.mydb = self.client[DATABASE_NAME]  # mydb ko initialize karein
+        self.col = self.mydb.Users
+        self.grp = self.mydb.Groups
+        self.users = self.mydb.uersz  # Collection name ko theek karein agar zaroorat ho
 
     def new_user(self, id, name):
-        return dict(
-            id = id,
-            name = name,
-            ban_status=dict(
-                is_banned=False,
-                ban_reason="",
-            ),
-            verify_status=self.default_verify
-        )
+        return {
+            'id': id,
+            'name': name,
+            'ban_status': {
+                'is_banned': False,
+                'ban_reason': "",
+            },
+            'verify_status': self.default_verify
+        }
 
     def new_group(self, id, title):
         return dict(
