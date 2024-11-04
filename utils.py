@@ -1,10 +1,10 @@
 import logging
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
-from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, 
+from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION
 from imdb import Cinemagoer
 import asyncio
 from pyrogram.types import Message, InlineKeyboardButton, ChatJoinRequest
-from pyrogram import enums
+from pyrogram import enums, Client
 import os
 import pytz
 import time, re
