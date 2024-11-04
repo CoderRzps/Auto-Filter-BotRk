@@ -1,5 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+from info import DATABASE_NAME, DATABASE_URL, IMDB_TEMPLATE, WELCOME_TEXT, AUTH_CHANNEL, LINK_MODE, TUTORIAL, SHORTLINK_URL, SHORTLINK_API, SHORTLINK, FILE_CAPTION, IMDB, WELCOME, SPELL_CHECK, PROTECT_CONTENT, AUTO_FILTER, AUTO_DELETE, IS_STREAM
+import time
 import datetime
 
 # Environment variable se `DATABASE_URL` ko fetch karenge
