@@ -17,29 +17,27 @@ from telegraph import upload_file
 from telegram import Update
 from telegram.ext import ContextTypes 
 
-db = IAFilterDB()
+@Client.on_message(filters.command("request"))
+async def request_command_handler(client, message):
+    await handle_request_command(client, message)
+
+@Client.on_message(filters.command("movie"))
+async def movie_command_handler(client, message):
+    await handle_movie_command(client, message)
 
 async def handle_request_command(bot, message):
     # Extract movie name and optional language from the command
     parts = message.text.split()
-    
-    if len(parts) < 2:
-        await bot.send_message(message.chat.id, "Please provide a movie name.")
-        return
-
     movie_name = parts[1]
     language = parts[2] if len(parts) > 2 else None
 
     # Request ko database me save karna
-    await db.add_movie_request(movie_name, language, message.from_user.id)
+    await IAFilterDB().add_movie_request(movie_name, language, message.from_user.id)
     await bot.send_message(message.chat.id, f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!")
 
 async def handle_movie_command(bot, message):
-    if len(message.text.split()) < 2:
-        await bot.send_message(message.chat.id, "Please provide a movie name.")
-        return
-
     movie_name = message.text.split(maxsplit=1)[1]
+    db = IAFilterDB()
     languages = await db.search_movie_by_name(movie_name)
     
     if languages:
@@ -52,6 +50,7 @@ async def handle_movie_command(bot, message):
             chat_id=message.chat.id,
             text="Requested movie is not yet available. Request has been sent to the admin."
         )
+
 
 @Client.on_message(filters.command("request"))
 async def request_command_handler(client, message):
