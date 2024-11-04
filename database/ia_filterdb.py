@@ -141,6 +141,7 @@ def unpack_new_file_id(new_file_id):
     )
     return file_id
 
+
 class IAFilterDB:
     def __init__(self):
         self.client = AsyncIOMotorClient(DATABASE_URL)
@@ -149,7 +150,6 @@ class IAFilterDB:
         self.requests_col = self.db['movie_requests']
 
     async def add_movie_request(self, movie_name, language, user_id):
-        """User ki movie request database mein save karta hai."""
         await self.requests_col.insert_one({
             'movie_name': movie_name,
             'language': language,
@@ -157,12 +157,10 @@ class IAFilterDB:
         })
 
     async def search_movie_by_name(self, movie_name):
-        """Movie name ke basis par database se available languages return karta hai."""
         movies = await self.movies_col.find({'movie_name': movie_name}).to_list(length=None)
         return [movie['language'] for movie in movies] if movies else []
 
     async def check_and_notify_request(self, movie_name, language, bot):
-        """Requesters ko notify karta hai jab requested movie available hoti hai."""
         requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
         user_ids = [req['user_id'] for req in requesters]
         
@@ -172,20 +170,9 @@ class IAFilterDB:
                 text=f"'{movie_name}' ({language}) ab available hai!"
             )
         
-        # Request ko delete karna
         await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
 
     async def check_movie_in_database(self, movie_name, language=None):
-        """
-        Database mein movie aur specific language check karta hai.
-        
-        Args:
-            movie_name (str): Movie ka naam.
-            language (str, optional): Language. Agar None hai, toh sabhi languages ke liye check karega.
-        
-        Returns:
-            bool: True if movie exists in specified language, else False.
-        """
         query = {'movie_name': movie_name}
         if language:
             query['language'] = language
