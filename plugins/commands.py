@@ -15,6 +15,55 @@ from utils import get_settings, delayed_delete, get_size, is_subscribed, is_chec
 import requests
 from telegraph import upload_file
 
+from telegram import Update
+from telegram.ext import ContextTypes
+
+
+async def request_movie(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = update.message.text.split(' ', 1)
+    
+    if len(message) < 2:
+        await update.message.reply_text("Please specify the movie name along with the language (e.g., `/request Kalki Hindi`).")
+        return
+
+    movie_name, language = message[1].rsplit(' ', 1)
+    is_available = await db.check_movie_availability(movie_name, language)
+
+    if is_available:
+        await update.message.reply_text(f"'{movie_name}' ({language}) is already available. Please use the name to search for it directly.")
+    else:
+        await db.add_movie_request(user.id, movie_name, language)
+        await update.message.reply_text(f"Your request for '{movie_name}' ({language}) has been noted. We will notify you once it's available.")
+
+async def notify_owner_of_request(context: ContextTypes.DEFAULT_TYPE, movie_name, language):
+    owner_chat_id = context.bot_data['owner_id']  # Set owner ID in bot_data
+    await context.bot.send_message(
+        chat_id=owner_chat_id,
+        text=f"New movie request: '{movie_name}' ({language})"
+    )
+
+async def upload_movie(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = update.message.text.split(' ', 2)
+
+    if len(message) < 3:
+        await update.message.reply_text("Please provide the movie name and language (e.g., `/upload Kalki Hindi`).")
+        return
+
+    movie_name, language = message[1], message[2]
+    await db.add_movie(movie_name, language)
+    await update.message.reply_text(f"'{movie_name}' ({language}) has been added successfully.")
+
+    # Notify users who requested this movie
+    users = await db.get_users_requesting_movie(movie_name, language)
+    for user_id in users:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"'{movie_name}' ({language}) is now available!"
+        )
+    await db.remove_requests(movie_name, language)  # Remove all requests for this movie
+    
 
 @Client.on_message(filters.command("ask") & filters.incoming) #add your support grp
 async def aiRes(_, message):
