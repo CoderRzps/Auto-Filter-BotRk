@@ -17,50 +17,58 @@ from telegraph import upload_file
 from telegram import Update
 from telegram.ext import ContextTypes 
 
+# Database instance
 ia_filter_db = IAF()
 
-async def on_movie_request(bot, message):
-    movie_name = message.text.split("/request ", 1)[1].strip()
-    language = None  # Agar user ne language mention ki hai, to isko set karein
-    
-    # Check if movie is available in specified language
-    movie_exists = await ia_filter_db.check_movie_in_database(movie_name, language)
-    if movie_exists:
-        await message.reply(f"'{movie_name}' ab {language} me available hai!")
-    else:
-        await message.reply(f"'{movie_name}' filhaal {language} me available nahi hai. Aapko notify karenge jab yeh available ho jayegi.")
-
-
+@Client.on_message(filters.command("request"))
 async def handle_request_command(bot, message):
     # Extract movie name and optional language from the command
-    parts = message.text.split()
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 2:
+        await message.reply("Please provide the movie name.")
+        return
+    
     movie_name = parts[1]
     language = parts[2] if len(parts) > 2 else None
 
-    # Request ko database me save karna
-    await IAF().add_movie_request(movie_name, language, message.from_user.id)
-    await bot.send_message(message.chat.id, f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!")
+    # Check if movie is available in specified language
+    movie_exists = await ia_filter_db.check_movie_in_database(movie_name, language)
+    
+    if movie_exists:
+        await message.reply(f"'{movie_name}' ab {language or 'specified'} language mein available hai!")
+    else:
+        # Add request to the database
+        await ia_filter_db.add_movie_request(movie_name, language, message.from_user.id)
+        await bot.send_message(
+            message.chat.id,
+            f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!"
+        )
 
+        # Notify in log channel
+        await bot.send_message(
+            LOG_CHANNEL,
+            f"New movie request: '{movie_name}' in {language or 'any language'} by User ID: {message.from_user.id}"
+        )
+
+@Client.on_message(filters.command("movie"))
 async def handle_movie_command(bot, message):
+    if len(message.text.split()) < 2:
+        await message.reply("Please provide the movie name.")
+        return
+    
     movie_name = message.text.split(maxsplit=1)[1]
-    db = IAF()
-    languages = await db.search_movie_by_name(movie_name)
+    languages = await ia_filter_db.search_movie_by_name(movie_name)
     
     if languages:
         await bot.send_message(
             chat_id=message.chat.id,
-            text=f"'{movie_name}' in available languages: {', '.join(languages)}"
+            text=f"'{movie_name}' is available in these languages: {', '.join(languages)}"
         )
     else:
         await bot.send_message(
             chat_id=message.chat.id,
             text="Requested movie is not yet available. Request has been sent to the admin."
         )
-
-@Client.on_message(filters.command("movie"))
-async def movie_command_handler(client, message):
-    await handle_movie_command(client, message)
-
 
 async def check_movie_in_database(self, movie_name, language=None):
         query = {'movie_name': movie_name}
