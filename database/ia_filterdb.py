@@ -141,25 +141,54 @@ def unpack_new_file_id(new_file_id):
     )
     return file_id
 
-# ia_filterdb.py
+class IAFilterDB:
+    def __init__(self):
+        self.client = AsyncIOMotorClient(DATABASE_URL)
+        self.db = self.client[DATABASE_NAME]
+        self.movies_col = self.db['movies']
+        self.requests_col = self.db['movie_requests']
 
-async def check_movie_in_database(movie_name: str) -> bool:
-    """
-    Database mein movie ke maujood hone ko check karne ke liye function.
-    
-    Args:
-        movie_name (str): Check karne ke liye movie ka naam.
+    async def add_movie_request(self, movie_name, language, user_id):
+        """
+        Adds a movie request into the database with a specific language.
+        """
+        await self.requests_col.insert_one({
+            'movie_name': movie_name,
+            'language': language,
+            'user_id': user_id
+        })
 
-    Returns:
-        bool: Agar movie database mein hai toh True, nahi toh False.
-    """
-    db = await get_database_connection()
-    try:
-        query = {"name": movie_name}
-        count = await db.movies.count_documents(query)
-        return count > 0  # Agar movie hai toh True, nahi toh False
-    except Exception as e:
-        print(f"Error checking movie in database: {e}")
-        return False
+    async def search_movie_by_name(self, movie_name):
+        """
+        Movie ka naam dekar language-wise search karega.
+        
+        Args:
+            movie_name (str): Movie ka naam.
+            
+        Returns:
+            list: List of available languages for the movie.
+        """
+        movies = await self.movies_col.find({'movie_name': movie_name}).to_list(length=None)
+        return [movie['language'] for movie in movies] if movies else []
 
-
+    async def check_and_notify_request(self, movie_name, language, bot):
+        """
+        Notify requesters if movie becomes available and delete the request.
+        
+        Args:
+            movie_name (str): Movie ka naam.
+            language (str): Requested language.
+            bot (Bot): Bot instance for sending notifications.
+        """
+        requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
+        user_ids = [req['user_id'] for req in requesters]
+        
+        # Notify each requester
+        for user_id in user_ids:
+            await bot.send_message(
+                chat_id=user_id,
+                text=f"'{movie_name}' ({language}) ab available hai!"
+            )
+        
+        # Delete requests for this movie and language
+        await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
