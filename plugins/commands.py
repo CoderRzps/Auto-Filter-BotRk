@@ -14,56 +14,36 @@ from info import STICKERS_IDS,SUPPORT_GROUP ,INDEX_CHANNELS, ADMINS, IS_VERIFY, 
 from utils import get_settings, delayed_delete, get_size, is_subscribed, is_check_admin, get_shortlink, get_verify_status, update_verify_status, save_group_settings, temp, get_readable_time, get_wish, get_seconds, notify_users_about_movie
 import requests
 from telegraph import upload_file
-
 from telegram import Update
 from telegram.ext import ContextTypes
+from database.ia_filterdb import IAFilterDB
 
+async def handle_request_command(bot, message):
+    # Extract movie name and optional language from the command
+    parts = message.text.split()
+    movie_name = parts[1]
+    language = parts[2] if len(parts) > 2 else None
 
-async def request_movie(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    message = update.message.text.split(' ', 1)
+    # Request ko database me save karna
+    await IAFilterDB().add_movie_request(movie_name, language, message.from_user.id)
+    await bot.send_message(message.chat.id, f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!")
+
+async def handle_movie_command(bot, message):
+    movie_name = message.text.split(maxsplit=1)[1]
+    db = IAFilterDB()
+    languages = await db.search_movie_by_name(movie_name)
     
-    if len(message) < 2:
-        await update.message.reply_text("Please specify the movie name along with the language (e.g., `/request Kalki Hindi`).")
-        return
-
-    movie_name, language = message[1].rsplit(' ', 1)
-    is_available = await db.check_movie_availability(movie_name, language)
-
-    if is_available:
-        await update.message.reply_text(f"'{movie_name}' ({language}) is already available. Please use the name to search for it directly.")
-    else:
-        await db.add_movie_request(user.id, movie_name, language)
-        await update.message.reply_text(f"Your request for '{movie_name}' ({language}) has been noted. We will notify you once it's available.")
-
-async def notify_owner_of_request(context: ContextTypes.DEFAULT_TYPE, movie_name, language):
-    owner_chat_id = context.bot_data['owner_id']  # Set owner ID in bot_data
-    await context.bot.send_message(
-        chat_id=owner_chat_id,
-        text=f"New movie request: '{movie_name}' ({language})"
-    )
-
-async def upload_movie(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    message = update.message.text.split(' ', 2)
-
-    if len(message) < 3:
-        await update.message.reply_text("Please provide the movie name and language (e.g., `/upload Kalki Hindi`).")
-        return
-
-    movie_name, language = message[1], message[2]
-    await db.add_movie(movie_name, language)
-    await update.message.reply_text(f"'{movie_name}' ({language}) has been added successfully.")
-
-    # Notify users who requested this movie
-    users = await db.get_users_requesting_movie(movie_name, language)
-    for user_id in users:
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=f"'{movie_name}' ({language}) is now available!"
+    if languages:
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text=f"'{movie_name}' in available languages: {', '.join(languages)}"
         )
-    await db.remove_requests(movie_name, language)  # Remove all requests for this movie
-    
+    else:
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text="Requested movie is not yet available. Request has been sent to the admin."
+        )
+
 
 @Client.on_message(filters.command("ask") & filters.incoming) #add your support grp
 async def aiRes(_, message):
