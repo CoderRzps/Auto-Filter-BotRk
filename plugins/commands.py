@@ -8,7 +8,7 @@ from Script import script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import ChatAdminRequired, FloodWait, ButtonDataInvalid
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, delete_files, IAFilterDB, check_movie_in_database
+from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, delete_files, IAF, check_movie_in_database
 from database.users_chats_db import db
 from info import STICKERS_IDS,SUPPORT_GROUP ,INDEX_CHANNELS, ADMINS, IS_VERIFY, VERIFY_TUTORIAL, VERIFY_EXPIRE, TUTORIAL, SHORTLINK_API, SHORTLINK_URL, AUTH_CHANNEL, DELETE_TIME, SUPPORT_LINK, UPDATES_LINK, LOG_CHANNEL, PICS, PROTECT_CONTENT, IS_STREAM, IS_FSUB, PAYMENT_QR
 from utils import get_settings, delayed_delete, get_size, is_subscribed, is_check_admin, get_shortlink, get_verify_status, update_verify_status, save_group_settings, temp, get_readable_time, get_wish, get_seconds, notify_users_about_movie
@@ -32,12 +32,12 @@ async def handle_request_command(bot, message):
     language = parts[2] if len(parts) > 2 else None
 
     # Request ko database me save karna
-    await IAFilterDB().add_movie_request(movie_name, language, message.from_user.id)
+    await IAF().add_movie_request(movie_name, language, message.from_user.id)
     await bot.send_message(message.chat.id, f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!")
 
 async def handle_movie_command(bot, message):
     movie_name = message.text.split(maxsplit=1)[1]
-    db = IAFilterDB()
+    db = IAF()
     languages = await db.search_movie_by_name(movie_name)
     
     if languages:
