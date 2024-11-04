@@ -18,7 +18,6 @@ from telegram import Update
 from telegram.ext import ContextTypes 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-
 class IAF:
     def __init__(self):
         # MongoDB client aur collections initialize
@@ -69,27 +68,14 @@ class IAF:
 
             # Ab request ko database se delete karna hai
             await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
-            return  # Ab function khatam ho gaya
 
-        # Agar movie available nahi hai, to naye requesters ko notify karein
-        requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
-        user_ids = [req['user_id'] for req in requesters]
-        
-        for user_id in user_ids:
-            await bot.send_message(
-                chat_id=user_id,
-                text=f"'{movie_name}' ({language}) ab available hai!"
+            # Log channel ko inform karein
+            log_msg = await bot.send_message(
+                chat_id=LOG_CHANNEL,
+                text=f"'{movie_name}' ({language}) ka request ab fulfill ho gaya hai."
             )
-
-        # Log channel ko inform karein aur request delete karein
-        log_msg = await bot.send_message(
-            chat_id=LOG_CHANNEL,
-            text=f"'{movie_name}' ({language}) ka request ab fulfill ho gaya hai."
-        )
-        await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
-
-        # Log message delete karein (optional)
-        await log_msg.delete()  # Is line ko hata sakte hain agar log messages delete nahi karna chahte
+            # Log message delete karein (optional)
+            await log_msg.delete()  # Is line ko hata sakte hain agar log messages delete nahi karna chahte
 
 # IAF instance
 ia_filter_db = IAF()
@@ -113,8 +99,7 @@ async def handle_request_command(bot, message):
     else:
         # Add request to the database
         await ia_filter_db.add_movie_request(movie_name, language, message.from_user.id)
-        await bot.send_message(
-            message.chat.id,
+        await message.reply(
             f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!"
         )
 
@@ -139,12 +124,11 @@ async def handle_movie_command(bot, message):
             text=f"'{movie_name}' is available in these languages: {', '.join(languages)}"
         )
     else:
-        await bot.send_message(
-            chat_id=message.chat.id,
+        await message.reply(
             text="Requested movie is not yet available. Request has been sent to the admin."
         )
 
-    
+   
 @Client.on_message(filters.command("ask") & filters.incoming) #add your support grp
 async def aiRes(_, message):
     if message.chat.id == SUPPORT_GROUP:
