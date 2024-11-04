@@ -13,6 +13,7 @@ from typing import List, Any, Union, Optional, AsyncGenerator
 from database.users_chats_db import db
 from shortzy import Shortzy
 
+
 imdb = Cinemagoer() 
 
 # temp db
@@ -284,7 +285,7 @@ async def check_movie_in_database(movie_name: str) -> bool:  # Line 85
     Returns:
         bool: True if the movie exists, False otherwise.
     """
-    async with your_database_connection() as db:
+    async with users_chats_db() as db:
         query = "SELECT COUNT(*) FROM movies WHERE name = $1"
         result = await db.fetchval(query, movie_name)
         
