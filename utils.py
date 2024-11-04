@@ -1,6 +1,6 @@
 import logging
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
-from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, DATABASE_URL
+from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, DATABASE_URL, DATABASE_NAME
 from imdb import Cinemagoer
 import asyncio
 from pyrogram.types import Message, InlineKeyboardButton, ChatJoinRequest
@@ -290,7 +290,9 @@ async def get_database_connection():
     
     # Motor ke through database connection
     client = AsyncIOMotorClient(DATABASE_URL)
-    db = client.get_default_database()  # Default database set hone par uska naam fetch karega
+    
+    # Agar environment mein default database nahi hai toh DATABASE_NAME use karein
+    db = client[DATABASE_NAME] if DATABASE_NAME else client.get_default_database()
     return db
 
 # Movie check karne ka function
