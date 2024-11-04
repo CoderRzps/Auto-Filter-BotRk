@@ -5,6 +5,7 @@ import base64
 from pyrogram.file_id import FileId
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
+from database.users_chats_db import get_database_connection
 from motor.motor_asyncio import AsyncIOMotorClient
 from marshmallow.exceptions import ValidationError
 from info import DATABASE_URL, DATABASE_NAME, COLLECTION_NAME, MAX_BTN
@@ -28,6 +29,25 @@ class Media(Document):
         indexes = ('$file_name', )
         collection_name = COLLECTION_NAME
 
+async def check_movie_in_database(movie_name: str) -> bool:
+    """
+    Database mein movie ke maujood hone ko check karne ke liye function.
+    
+    Args:
+        movie_name (str): Check karne ke liye movie ka naam.
+
+    Returns:
+        bool: Agar movie database mein hai toh True, nahi toh False.
+    """
+    db = await get_database_connection()
+    try:
+        query = {"name": movie_name}
+        count = await db.movies.count_documents(query)
+        return count > 0  # Agar movie hai toh True, nahi toh False
+    except Exception as e:
+        print(f"Error checking movie in database: {e}")
+        return False
+        
 async def save_file(media):
     """Save file in database"""
 
