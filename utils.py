@@ -1,6 +1,6 @@
 import logging
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
-from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION
+from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, DATABASE_URL
 from imdb import Cinemagoer
 import asyncio
 from pyrogram.types import Message, InlineKeyboardButton, ChatJoinRequest
@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import List, Any, Union, Optional, AsyncGenerator
 from database.users_chats_db import db
 from shortzy import Shortzy
+import asyncpg
 
 
 imdb = Cinemagoer() 
@@ -275,7 +276,24 @@ async def delayed_delete(Bot, message, delay):
     await asyncio.sleep(delay)
     await Bot.delete_messages(chat_id=message.chat.id, message_ids=message.id)
 
-async def check_movie_in_database(movie_name: str) -> bool:  # Line 85
+
+async def get_database_connection():
+    """
+    Connect to the database using DATABASE_URL environment variable.
+    
+    Returns:
+        asyncpg.connection: Database connection object.
+    """
+    # Environment variable se DATABASE_URL ko read karo
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is not set.")
+    
+    # Connect with the database URL
+    conn = await asyncpg.connect(database_url)
+    return conn
+
+async def check_movie_in_database(movie_name: str) -> bool:
     """
     Check if the movie exists in the database.
     
@@ -285,8 +303,8 @@ async def check_movie_in_database(movie_name: str) -> bool:  # Line 85
     Returns:
         bool: True if the movie exists, False otherwise.
     """
-    async with database.users_chats_db() as db:
+    # Connect to the database using get_database_connection
+    async with get_database_connection() as db:
         query = "SELECT COUNT(*) FROM movies WHERE name = $1"
         result = await db.fetchval(query, movie_name)
-        
-        return result > 0  # Return True if count is greater than
+        return result > 0  # True if count > 0, False otherwise
