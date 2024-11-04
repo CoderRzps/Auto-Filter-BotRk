@@ -280,16 +280,16 @@ async def delayed_delete(Bot, message, delay):
 async def get_database_connection():
     """
     Connect to the database using DATABASE_URL environment variable.
-    
+
     Returns:
         asyncpg.connection: Database connection object.
     """
-    # Environment variable se DATABASE_URL ko read karo
+    # Read DATABASE_URL from the environment variable
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL environment variable is not set.")
     
-    # Connect with the database URL
+    # Establish a connection to the database
     conn = await asyncpg.connect(database_url)
     return conn
 
@@ -303,8 +303,12 @@ async def check_movie_in_database(movie_name: str) -> bool:
     Returns:
         bool: True if the movie exists, False otherwise.
     """
-    # Connect to the database using get_database_connection
-    async with get_database_connection() as db:
+    # Establish connection to the database
+    db = await get_database_connection()
+    try:
         query = "SELECT COUNT(*) FROM movies WHERE name = $1"
         result = await db.fetchval(query, movie_name)
         return result > 0  # True if count > 0, False otherwise
+    finally:
+        await db.close()  # Close the connection
+
