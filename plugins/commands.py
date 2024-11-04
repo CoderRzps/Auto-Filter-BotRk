@@ -8,7 +8,7 @@ from Script import script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import ChatAdminRequired, FloodWait, ButtonDataInvalid
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, delete_files, IAF
+from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, delete_files
 from database.users_chats_db import db
 from info import STICKERS_IDS,SUPPORT_GROUP ,INDEX_CHANNELS, ADMINS, IS_VERIFY, VERIFY_TUTORIAL, VERIFY_EXPIRE, TUTORIAL, SHORTLINK_API, SHORTLINK_URL, AUTH_CHANNEL, DELETE_TIME, SUPPORT_LINK, UPDATES_LINK, LOG_CHANNEL, PICS, PROTECT_CONTENT, IS_STREAM, IS_FSUB, PAYMENT_QR
 from utils import get_settings, delayed_delete, get_size, is_subscribed, is_check_admin, get_shortlink, get_verify_status, update_verify_status, save_group_settings, temp, get_readable_time, get_wish, get_seconds, notify_users_about_movie
@@ -17,66 +17,11 @@ from telegraph import upload_file
 from telegram import Update
 from telegram.ext import ContextTypes 
 
-# Database instance
-ia_filter_db = IAF()
-
-@Client.on_message(filters.command("request"))
-async def handle_request_command(bot, message):
-    # Extract movie name and optional language from the command
-    parts = message.text.split(maxsplit=2)
-    if len(parts) < 2:
-        await message.reply("Please provide the movie name.")
-        return
-    
-    movie_name = parts[1]
-    language = parts[2] if len(parts) > 2 else None
-
-    # Check if movie is available in specified language
-    movie_exists = await ia_filter_db.check_movie_in_database(movie_name, language)
-    
-    if movie_exists:
-        await message.reply(f"'{movie_name}' ab {language or 'specified'} language mein available hai!")
-    else:
-        # Add request to the database
-        await ia_filter_db.add_movie_request(movie_name, language, message.from_user.id)
-        await bot.send_message(
-            message.chat.id,
-            f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!"
-        )
-
-        # Notify in log channel
-        await bot.send_message(
-            LOG_CHANNEL,
-            f"New movie request: '{movie_name}' in {language or 'any language'} by User ID: {message.from_user.id}"
-        )
-
-@Client.on_message(filters.command("movie"))
-async def handle_movie_command(bot, message):
-    if len(message.text.split()) < 2:
-        await message.reply("Please provide the movie name.")
-        return
-    
-    movie_name = message.text.split(maxsplit=1)[1]
-    languages = await ia_filter_db.search_movie_by_name(movie_name)
-    
-    if languages:
-        await bot.send_message(
-            chat_id=message.chat.id,
-            text=f"'{movie_name}' is available in these languages: {', '.join(languages)}"
-        )
-    else:
-        await bot.send_message(
-            chat_id=message.chat.id,
-            text="Requested movie is not yet available. Request has been sent to the admin."
-        )
-
-async def check_movie_in_database(self, movie_name, language=None):
-        query = {'movie_name': movie_name}
-        if language:
-            query['language'] = language
-        
-        movie = await self.movies_col.find_one(query)
-        return movie is not None  # Movie milne par True return karega
+class IAF:
+    def __init__(self):
+from motor.motor_asyncio import AsyncIOMotorClient
+from info import DATABASE_URL, DATABASE_NAME, LOG_CHANNEL
+from your_bot_instance import Client  # Replace `your_bot_instance` with the actual instance file
 
 class IAF:
     def __init__(self):
@@ -149,6 +94,60 @@ class IAF:
 
         # Log message delete karein (optional)
         await log_msg.delete()  # Is line ko hata sakte hain agar log messages delete nahi karna chahte
+
+# IAF instance
+ia_filter_db = IAF()
+
+@Client.on_message(filters.command("request"))
+async def handle_request_command(bot, message):
+    # Extract movie name and optional language from the command
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 2:
+        await message.reply("Please provide the movie name.")
+        return
+    
+    movie_name = parts[1]
+    language = parts[2] if len(parts) > 2 else None
+
+    # Check if movie is available in specified language
+    movie_exists = await ia_filter_db.check_movie_in_database(movie_name, language)
+    
+    if movie_exists:
+        await message.reply(f"'{movie_name}' ab {language or 'specified'} language mein available hai!")
+    else:
+        # Add request to the database
+        await ia_filter_db.add_movie_request(movie_name, language, message.from_user.id)
+        await bot.send_message(
+            message.chat.id,
+            f"Movie '{movie_name}' ({language or 'Any language'}) ka request successful!"
+        )
+
+        # Notify in log channel
+        await bot.send_message(
+            LOG_CHANNEL,
+            f"New movie request: '{movie_name}' in {language or 'any language'} by User ID: {message.from_user.id}"
+        )
+
+@Client.on_message(filters.command("movie"))
+async def handle_movie_command(bot, message):
+    if len(message.text.split()) < 2:
+        await message.reply("Please provide the movie name.")
+        return
+    
+    movie_name = message.text.split(maxsplit=1)[1]
+    languages = await ia_filter_db.search_movie_by_name(movie_name)
+    
+    if languages:
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text=f"'{movie_name}' is available in these languages: {', '.join(languages)}"
+        )
+    else:
+        await bot.send_message(
+            chat_id=message.chat.id,
+            text="Requested movie is not yet available. Request has been sent to the admin."
+        )
+
     
 @Client.on_message(filters.command("ask") & filters.incoming) #add your support grp
 async def aiRes(_, message):
