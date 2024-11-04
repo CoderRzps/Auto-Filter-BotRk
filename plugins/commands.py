@@ -335,39 +335,13 @@ async def settings(client, message):
         await message.reply_text('Something went wrong!')
 
 
-# Store pending requests for notification
-pending_requests = {}  # Format: {"movie_name": [user_ids]}
-
 @Client.on_message(filters.command("request"))
-async def handle_movie_request(client, message):
-    movie_name = message.text.split("/request ", 1)[1].strip()
-    user_id = message.from_user.id
+async def request_command_handler(client, message):
+    await handle_request_command(client, message)
 
-    # Check if movie already exists in the database
-    movie_exists = await check_movie_in_database(movie_name)
-
-    if movie_exists:
-        await message.reply_text(f"🎬 '{movie_name}' already available. Please search for it.")
-    else:
-        # Add user to pending requests for this movie
-        if movie_name in pending_requests:
-            pending_requests[movie_name].append(user_id)
-        else:
-            pending_requests[movie_name] = [user_id]
-
-        await message.reply_text(f"Your request for '{movie_name}' has been noted. You will be notified when it becomes available.")
-
-async def check_and_notify_movie_availability(client, movie_name):
-    """
-    Movie upload hone par pending users ko notify karega.
-    
-    Args:
-        client (Client): Bot instance jo message send karega.
-        movie_name (str): Movie ka naam jo ab available hai.
-    """
-    if movie_name in pending_requests:
-        user_ids = pending_requests.pop(movie_name)
-        await notify_users_about_movie(client, user_ids, movie_name)
+@Client.on_message(filters.command("movie"))
+async def movie_command_handler(client, message):
+    await handle_movie_command(client, message
 
 @Client.on_message(filters.command('set_template'))
 async def save_template(client, message):
