@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import List, Any, Union, Optional, AsyncGenerator
 from database.users_chats_db import db
 from shortzy import Shortzy
+from motor.motor_asyncio import AsyncIOMotorClient
 
 
 imdb = Cinemagoer() 
@@ -280,8 +281,10 @@ async def get_database_connection():
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable is not set.")
     
-    conn = await asyncpg.connect(DATABASE_URL)
-    return conn
+    # Motor ke through database se connect karo
+    client = AsyncIOMotorClient(DATABASE_URL)
+    db = client.get_default_database()  # Default database ka naam lene ke liye
+    return db
 
 async def check_movie_in_database(movie_name: str) -> bool:
     """
@@ -296,9 +299,9 @@ async def check_movie_in_database(movie_name: str) -> bool:
     # Establish connection to the database
     db = await get_database_connection()
     try:
-        query = "SELECT COUNT(*) FROM movies WHERE name = $1"
-        result = await db.fetchval(query, movie_name)
-        return result > 0  # True if count > 0, False otherwise
+        # Motor ka use karke query execute karo
+        query = {"name": movie_name}
+        count = await db.movies.count_documents(query)
+        return count > 0  # True if count > 0, False otherwise
     finally:
-        await db.close()  # Close the connection
-
+        await db.client.close()  # Close the connection
