@@ -276,5 +276,21 @@ async def delayed_delete(Bot, message, delay):
     await asyncio.sleep(delay)
     await Bot.delete_messages(chat_id=message.chat.id, message_ids=message.id)
 
+async def notify_users_about_movie(bot: Client, user_ids: list, movie_name: str):
+    """
+    Un users ko notify karne ka function jo specific movie ke liye wait kar rahe hain.
+    
+    Args:
+        bot (Client): Bot instance jo message send karega.
+        user_ids (list): List of user IDs jo notification paayenge.
+        movie_name (str): Movie ka naam jo ab available hai.
+    """
+    notification_text = f"🎬 The movie '{movie_name}' is now available! Aap ab search kar sakte hain."
 
+    for user_id in user_ids:
+        try:
+            await bot.send_message(user_id, notification_text)
+        except Exception as e:
+            print(f"Error notifying user {user_id}: {e}")
+        
 # Database connection establish karne ka function
