@@ -142,7 +142,7 @@ def unpack_new_file_id(new_file_id):
     return file_id
 
 
-class IAFilterDB:
+class IAF:
     def __init__(self):
         self.client = AsyncIOMotorClient(DATABASE_URL)
         self.db = self.client[DATABASE_NAME]
