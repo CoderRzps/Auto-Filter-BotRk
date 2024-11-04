@@ -8,7 +8,7 @@ from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
 from motor.motor_asyncio import AsyncIOMotorClient
 from marshmallow.exceptions import ValidationError
-from info import DATABASE_URL, DATABASE_NAME, COLLECTION_NAME, MAX_BTN
+from info import DATABASE_URL, DATABASE_NAME, COLLECTION_NAME, MAX_BTN, LOG_CHANNEL
 
 client = AsyncIOMotorClient(DATABASE_URL)
 db = client[DATABASE_NAME]
@@ -150,28 +150,47 @@ class IAF:
         self.movies_col = self.db['movies']
         self.requests_col = self.db['movie_requests']
    
-
     async def add_movie_request(self, movie_name, language, user_id):
+        """Movie request ko database me add karein."""
         await self.requests_col.insert_one({
             'movie_name': movie_name,
             'language': language,
             'user_id': user_id
         })
+        return f"Movie request received: '{movie_name}' in {language or 'Any language'} by User ID: {user_id}"
 
     async def search_movie_by_name(self, movie_name):
+        """Movie ka naam dhoondhein aur available languages ko return karein."""
         movies = await self.movies_col.find({'movie_name': movie_name}).to_list(length=None)
         return [movie['language'] for movie in movies] if movies else []
 
+    async def check_movie_in_database(self, movie_name, language=None):
+        """Database me movie ki availability check karein."""
+        query = {'movie_name': movie_name}
+        if language:
+            query['language'] = language
+        
+        movie = await self.movies_col.find_one(query)
+        return movie is not None  # Movie milne par True return karega
+
     async def check_and_notify_request(self, movie_name, language, bot):
+        """Request ko fulfill karne par request karne walon ko notify karein aur database se delete karein."""
         requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
         user_ids = [req['user_id'] for req in requesters]
         
+        # Notify users
         for user_id in user_ids:
             await bot.send_message(
                 chat_id=user_id,
                 text=f"'{movie_name}' ({language}) ab available hai!"
             )
         
+        # Log channel ko inform karein aur request delete karein
+        log_msg = await bot.send_message(
+            chat_id=LOG_CHANNEL,
+            text=f"'{movie_name}' ({language}) ka request ab fulfill ho gaya hai."
+        )
         await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
 
-    
+        # Log message delete karein (optional)
+        await log_msg.delete()  # Is line ko hata sakte hain agar log messages delete nahi karna chahte
