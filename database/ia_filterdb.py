@@ -174,10 +174,4 @@ class IAF:
         
         await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
 
-    async def check_movie_in_database(self, movie_name, language=None):
-        query = {'movie_name': movie_name}
-        if language:
-            query['language'] = language
-        
-        movie = await self.movies_col.find_one(query)
-        return movie is not None  # Movie milne par True return karega
+    
