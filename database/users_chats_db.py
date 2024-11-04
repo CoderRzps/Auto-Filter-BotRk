@@ -49,13 +49,13 @@ class Database:
         'verify_token': "",
         'link': ""
     }
-
+    
     def __init__(self):
-        self.client = AsyncIOMotorClient(DATABASE_URL)  # MongoDB connection
+        self.client = AsyncIOMotorClient("your_mongodb_connection_string_here")  # Apni connection string daalein
         self.mydb = self.client[DATABASE_NAME]  # Initialize mydb with DATABASE_NAME
         self.col = self.mydb.Users
         self.grp = self.mydb.Groups
-        self.users = self.mydb.uersz
+        self.users = self.mydb.usersz
 
     def new_user(self, id, name):
         return dict(
@@ -67,6 +67,7 @@ class Database:
             ),
             verify_status=self.default_verify
         )
+
 
     def new_group(self, id, title):
         return dict(
