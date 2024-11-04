@@ -17,9 +17,19 @@ from telegraph import upload_file
 from telegram import Update
 from telegram.ext import ContextTypes 
 
-@Client.on_message(filters.command("request"))
-async def request_command_handler(client, message):
-    await handle_request_command(client, message)
+ia_filter_db = IAF()
+
+async def on_movie_request(bot, message):
+    movie_name = message.text.split("/request ", 1)[1].strip()
+    language = None  # Agar user ne language mention ki hai, to isko set karein
+    
+    # Check if movie is available in specified language
+    movie_exists = await ia_filter_db.check_movie_in_database(movie_name, language)
+    if movie_exists:
+        await message.reply(f"'{movie_name}' ab {language} me available hai!")
+    else:
+        await message.reply(f"'{movie_name}' filhaal {language} me available nahi hai. Aapko notify karenge jab yeh available ho jayegi.")
+
 
 @Client.on_message(filters.command("movie"))
 async def movie_command_handler(client, message):
