@@ -1,12 +1,11 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
 from info import DATABASE_NAME, DATABASE_URL, IMDB_TEMPLATE, WELCOME_TEXT, AUTH_CHANNEL, LINK_MODE, TUTORIAL, SHORTLINK_URL, SHORTLINK_API, SHORTLINK, FILE_CAPTION, IMDB, WELCOME, SPELL_CHECK, PROTECT_CONTENT, AUTO_FILTER, AUTO_DELETE, IS_STREAM
 import time
 import datetime
 
-# Environment variable se `DATABASE_URL` ko fetch karenge
-DATABASE_URL = os.getenv("DATABASE_URL")
-DATABASE_NAME = os.getenv("DATABASE_NAME")
+client = AsyncIOMotorClient(DATABASE_URL)
+mydb = client[DATABASE_NAME]
+
 
 async def get_database_connection():
     """
@@ -16,13 +15,8 @@ async def get_database_connection():
         db: Motor client ke saath connected MongoDB database instance.
     """
     if not DATABASE_URL:
-        raise ValueError("DATABASE_URL environment variable is not set.")
+        raise ValueError("DATABASE_URL environment variable is not set.")  
     
-    # Motor ke through database connection
-    client = AsyncIOMotorClient(DATABASE_URL)
-    db = client[DATABASE_NAME]  # Specify the database name here
-    return db
-
 class Database:
     default_setgs = {
         'auto_filter': AUTO_FILTER,
@@ -51,23 +45,20 @@ class Database:
     }
     
     def __init__(self):
-        self.client = AsyncIOMotorClient("your_mongodb_connection_string_here")  # Apni connection string daalein
-        self.mydb = self.client[DATABASE_NAME]  # Initialize mydb with DATABASE_NAME
-        self.col = self.mydb.Users
-        self.grp = self.mydb.Groups
-        self.users = self.mydb.usersz
+        self.col = mydb.Users
+        self.grp = mydb.Groups
+        self.users = mydb.uersz
 
     def new_user(self, id, name):
         return dict(
-            id=id,
-            name=name,
+            id = id,
+            name = name,
             ban_status=dict(
                 is_banned=False,
                 ban_reason="",
             ),
             verify_status=self.default_verify
         )
-
 
     def new_group(self, id, title):
         return dict(
