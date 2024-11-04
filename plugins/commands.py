@@ -62,10 +62,6 @@ async def handle_movie_command(bot, message):
         )
 
 
-@Client.on_message(filters.command("request"))
-async def request_command_handler(client, message):
-    await handle_request_command(client, message)
-
 @Client.on_message(filters.command("movie"))
 async def movie_command_handler(client, message):
     await handle_movie_command(client, message)
