@@ -2,9 +2,29 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from info import DATABASE_NAME, DATABASE_URL, IMDB_TEMPLATE, WELCOME_TEXT, AUTH_CHANNEL, LINK_MODE, TUTORIAL, SHORTLINK_URL, SHORTLINK_API, SHORTLINK, FILE_CAPTION, IMDB, WELCOME, SPELL_CHECK, PROTECT_CONTENT, AUTO_FILTER, AUTO_DELETE, IS_STREAM
 import time
 import datetime
+import os
 
 client = AsyncIOMotorClient(DATABASE_URL)
 mydb = client[DATABASE_NAME]
+
+
+# Environment variable se DATABASE_URL ko fetch karenge
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+async def get_database_connection():
+    """
+    MongoDB database se connection establish karne ke liye function.
+    
+    Returns:
+        db: Motor client ke saath connected MongoDB database instance.
+    """
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is not set.")
+    
+    # Motor ke through database connection
+    client = AsyncIOMotorClient(DATABASE_URL)
+    db = client.get_default_database()  # Default database set hone par uska naam fetch karega
+    return db
 
 class Database:
     default_setgs = {
