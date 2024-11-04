@@ -16,12 +16,8 @@ import requests
 from telegraph import upload_file
 from telegram import Update
 from telegram.ext import ContextTypes 
-
-class IAF:
-    def __init__(self):
 from motor.motor_asyncio import AsyncIOMotorClient
-from info import DATABASE_URL, DATABASE_NAME, LOG_CHANNEL
-from your_bot_instance import Client  # Replace `your_bot_instance` with the actual instance file
+
 
 class IAF:
     def __init__(self):
