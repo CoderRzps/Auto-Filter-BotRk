@@ -141,7 +141,6 @@ def unpack_new_file_id(new_file_id):
     )
     return file_id
 
-
 class IAF:
     def __init__(self):
         # MongoDB client aur collections initialize
@@ -149,9 +148,9 @@ class IAF:
         self.db = self.client[DATABASE_NAME]
         self.movies_col = self.db['movies']
         self.requests_col = self.db['movie_requests']
-   
+
     async def add_movie_request(self, movie_name, language, user_id):
-        """Movie request ko database me add karein."""
+        # Movie request ko database me save karein
         await self.requests_col.insert_one({
             'movie_name': movie_name,
             'language': language,
@@ -160,31 +159,50 @@ class IAF:
         return f"Movie request received: '{movie_name}' in {language or 'Any language'} by User ID: {user_id}"
 
     async def search_movie_by_name(self, movie_name):
-        """Movie ka naam dhoondhein aur available languages ko return karein."""
+        # Movie ka naam se database me search karein
         movies = await self.movies_col.find({'movie_name': movie_name}).to_list(length=None)
         return [movie['language'] for movie in movies] if movies else []
 
     async def check_movie_in_database(self, movie_name, language=None):
-        """Database me movie ki availability check karein."""
+        # Movie ko database me check karein
         query = {'movie_name': movie_name}
         if language:
             query['language'] = language
-        
+
         movie = await self.movies_col.find_one(query)
-        return movie is not None  # Movie milne par True return karega
+        return movie is not None
 
     async def check_and_notify_request(self, movie_name, language, bot):
         """Request ko fulfill karne par request karne walon ko notify karein aur database se delete karein."""
+        
+        # Check agar movie already available hai
+        movie_available = await self.check_movie_in_database(movie_name, language)
+
+        if movie_available:
+            # Agar movie already available hai, to users ko notify karein
+            requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
+            user_ids = [req['user_id'] for req in requesters]
+
+            for user_id in user_ids:
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=f"'{movie_name}' ({language}) already available hai. Aap search kar sakte hain!"
+                )
+
+            # Ab request ko database se delete karna hai
+            await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
+            return  # Ab function khatam ho gaya
+
+        # Agar movie available nahi hai, to naye requesters ko notify karein
         requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
         user_ids = [req['user_id'] for req in requesters]
         
-        # Notify users
         for user_id in user_ids:
             await bot.send_message(
                 chat_id=user_id,
                 text=f"'{movie_name}' ({language}) ab available hai!"
             )
-        
+
         # Log channel ko inform karein aur request delete karein
         log_msg = await bot.send_message(
             chat_id=LOG_CHANNEL,
