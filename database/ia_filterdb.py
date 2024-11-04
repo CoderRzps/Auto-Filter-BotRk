@@ -149,9 +149,6 @@ class IAFilterDB:
         self.requests_col = self.db['movie_requests']
 
     async def add_movie_request(self, movie_name, language, user_id):
-        """
-        Adds a movie request into the database with a specific language.
-        """
         await self.requests_col.insert_one({
             'movie_name': movie_name,
             'language': language,
@@ -159,36 +156,35 @@ class IAFilterDB:
         })
 
     async def search_movie_by_name(self, movie_name):
-        """
-        Movie ka naam dekar language-wise search karega.
-        
-        Args:
-            movie_name (str): Movie ka naam.
-            
-        Returns:
-            list: List of available languages for the movie.
-        """
         movies = await self.movies_col.find({'movie_name': movie_name}).to_list(length=None)
         return [movie['language'] for movie in movies] if movies else []
 
     async def check_and_notify_request(self, movie_name, language, bot):
-        """
-        Notify requesters if movie becomes available and delete the request.
-        
-        Args:
-            movie_name (str): Movie ka naam.
-            language (str): Requested language.
-            bot (Bot): Bot instance for sending notifications.
-        """
         requesters = await self.requests_col.find({'movie_name': movie_name, 'language': language}).to_list(length=None)
         user_ids = [req['user_id'] for req in requesters]
         
-        # Notify each requester
         for user_id in user_ids:
             await bot.send_message(
                 chat_id=user_id,
                 text=f"'{movie_name}' ({language}) ab available hai!"
             )
         
-        # Delete requests for this movie and language
         await self.requests_col.delete_many({'movie_name': movie_name, 'language': language})
+
+    async def check_movie_in_database(self, movie_name, language=None):
+        """
+        Database mein movie aur specific language check karta hai.
+        
+        Args:
+            movie_name (str): Movie ka naam.
+            language (str, optional): Language. Agar None hai, toh sabhi languages ke liye check karega.
+        
+        Returns:
+            bool: True if movie exists in specified language, else False.
+        """
+        query = {'movie_name': movie_name}
+        if language:
+            query['language'] = language
+
+        movie = await self.movies_col.find_one(query)
+        return movie is not None  # Return True if movie found, else False
