@@ -15,4 +15,5 @@ fuzzywuzzy
 python-Levenshtein
 requests
 telegraph
-telegram
+python-telegram-bot
+
