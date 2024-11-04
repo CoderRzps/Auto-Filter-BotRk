@@ -1,6 +1,6 @@
 import logging
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
-from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, DATABASE_URL, DATABASE_NAME
+from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, 
 from imdb import Cinemagoer
 import asyncio
 from pyrogram.types import Message, InlineKeyboardButton, ChatJoinRequest
@@ -278,39 +278,3 @@ async def delayed_delete(Bot, message, delay):
 
 
 # Database connection establish karne ka function
-async def get_database_connection():
-    """
-    MongoDB database se connection establish karne ke liye function.
-    
-    Returns:
-        db: Motor client ke saath connected MongoDB database instance.
-    """
-    if not DATABASE_URL:
-        raise ValueError("DATABASE_URL environment variable is not set.")
-    
-    # Motor ke through database connection
-    client = AsyncIOMotorClient(DATABASE_URL)
-    
-    # Agar environment mein default database nahi hai toh DATABASE_NAME use karein
-    db = client[DATABASE_NAME] if DATABASE_NAME else client.get_default_database()
-    return db
-
-# Movie check karne ka function
-async def check_movie_in_database(movie_name: str) -> bool:
-    """
-    Database mein movie ke maujood hone ko check karne ke liye function.
-    
-    Args:
-        movie_name (str): Check karne ke liye movie ka naam.
-
-    Returns:
-        bool: Agar movie database mein hai toh True, nahi toh False.
-    """
-    db = await get_database_connection()
-    try:
-        query = {"name": movie_name}
-        count = await db.movies.count_documents(query)
-        return count > 0  # Agar movie hai toh True, nahi toh False
-    except Exception as e:
-        print(f"Error checking movie in database: {e}")
-        return False
