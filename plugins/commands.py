@@ -31,10 +31,6 @@ async def on_movie_request(bot, message):
         await message.reply(f"'{movie_name}' filhaal {language} me available nahi hai. Aapko notify karenge jab yeh available ho jayegi.")
 
 
-@Client.on_message(filters.command("movie"))
-async def movie_command_handler(client, message):
-    await handle_movie_command(client, message)
-
 async def handle_request_command(bot, message):
     # Extract movie name and optional language from the command
     parts = message.text.split()
@@ -61,12 +57,19 @@ async def handle_movie_command(bot, message):
             text="Requested movie is not yet available. Request has been sent to the admin."
         )
 
-
 @Client.on_message(filters.command("movie"))
 async def movie_command_handler(client, message):
     await handle_movie_command(client, message)
 
 
+async def check_movie_in_database(self, movie_name, language=None):
+        query = {'movie_name': movie_name}
+        if language:
+            query['language'] = language
+        
+        movie = await self.movies_col.find_one(query)
+        return movie is not None  # Movie milne par True return karega
+    
 @Client.on_message(filters.command("ask") & filters.incoming) #add your support grp
 async def aiRes(_, message):
     if message.chat.id == SUPPORT_GROUP:
