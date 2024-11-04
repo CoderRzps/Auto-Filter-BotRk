@@ -3,7 +3,6 @@ from struct import pack
 import re
 import base64
 from pyrogram.file_id import FileId
-from database.users_chats_db import get_database_connection
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
 from motor.motor_asyncio import AsyncIOMotorClient
