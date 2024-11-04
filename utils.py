@@ -277,31 +277,38 @@ async def delayed_delete(Bot, message, delay):
     await Bot.delete_messages(chat_id=message.chat.id, message_ids=message.id)
 
 
+# Database connection establish karne ka function
 async def get_database_connection():
+    """
+    MongoDB database se connection establish karne ke liye function.
+    
+    Returns:
+        db: Motor client ke saath connected MongoDB database instance.
+    """
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable is not set.")
     
-    # Motor ke through database se connect karo
+    # Motor ke through database connection
     client = AsyncIOMotorClient(DATABASE_URL)
-    db = client.get_default_database()  # Default database ka naam lene ke liye
+    db = client.get_default_database()  # Default database set hone par uska naam fetch karega
     return db
 
+# Movie check karne ka function
 async def check_movie_in_database(movie_name: str) -> bool:
     """
-    Check if the movie exists in the database.
+    Database mein movie ke maujood hone ko check karne ke liye function.
     
     Args:
-        movie_name (str): The name of the movie to check.
+        movie_name (str): Check karne ke liye movie ka naam.
 
     Returns:
-        bool: True if the movie exists, False otherwise.
+        bool: Agar movie database mein hai toh True, nahi toh False.
     """
-    # Establish connection to the database
     db = await get_database_connection()
     try:
-        # Motor ka use karke query execute karo
         query = {"name": movie_name}
         count = await db.movies.count_documents(query)
-        return count > 0  # True if count > 0, False otherwise
-    finally:
-        await db.client.close()  # Close the connection
+        return count > 0  # Agar movie hai toh True, nahi toh False
+    except Exception as e:
+        print(f"Error checking movie in database: {e}")
+        return False
