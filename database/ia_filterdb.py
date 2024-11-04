@@ -144,10 +144,12 @@ def unpack_new_file_id(new_file_id):
 
 class IAF:
     def __init__(self):
+        # MongoDB client aur collections initialize
         self.client = AsyncIOMotorClient(DATABASE_URL)
         self.db = self.client[DATABASE_NAME]
         self.movies_col = self.db['movies']
         self.requests_col = self.db['movie_requests']
+   
 
     async def add_movie_request(self, movie_name, language, user_id):
         await self.requests_col.insert_one({
@@ -176,6 +178,6 @@ class IAF:
         query = {'movie_name': movie_name}
         if language:
             query['language'] = language
-
+        
         movie = await self.movies_col.find_one(query)
-        return movie is not None  # Return True if movie found, else False
+        return movie is not None  # Movie milne par True return karega
