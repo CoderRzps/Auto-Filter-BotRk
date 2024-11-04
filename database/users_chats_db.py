@@ -6,17 +6,6 @@ import datetime
 client = AsyncIOMotorClient(DATABASE_URL)
 mydb = client[DATABASE_NAME]
 
-
-async def get_database_connection():
-    """
-    MongoDB database se connection establish karne ke liye function.
-    
-    Returns:
-        db: Motor client ke saath connected MongoDB database instance.
-    """
-    if not DATABASE_URL:
-        raise ValueError("DATABASE_URL environment variable is not set.")  
-    
 class Database:
     default_setgs = {
         'auto_filter': AUTO_FILTER,
