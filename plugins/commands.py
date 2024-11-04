@@ -8,12 +8,13 @@ from Script import script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import ChatAdminRequired, FloodWait, ButtonDataInvalid
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, delete_files
+from database.ia_filterdb import Media, get_file_details, unpack_new_file_id, delete_files, check_movie_in_database
 from database.users_chats_db import db
 from info import STICKERS_IDS,SUPPORT_GROUP ,INDEX_CHANNELS, ADMINS, IS_VERIFY, VERIFY_TUTORIAL, VERIFY_EXPIRE, TUTORIAL, SHORTLINK_API, SHORTLINK_URL, AUTH_CHANNEL, DELETE_TIME, SUPPORT_LINK, UPDATES_LINK, LOG_CHANNEL, PICS, PROTECT_CONTENT, IS_STREAM, IS_FSUB, PAYMENT_QR
-from utils import get_settings, delayed_delete, get_size, is_subscribed, is_check_admin, get_shortlink, get_verify_status, update_verify_status, save_group_settings, temp, get_readable_time, get_wish, get_seconds, check_movie_in_database
+from utils import get_settings, delayed_delete, get_size, is_subscribed, is_check_admin, get_shortlink, get_verify_status, update_verify_status, save_group_settings, temp, get_readable_time, get_wish, get_seconds, notify_users_about_movie
 import requests
 from telegraph import upload_file
+
 
 @Client.on_message(filters.command("ask") & filters.incoming) #add your support grp
 async def aiRes(_, message):
@@ -304,20 +305,40 @@ async def settings(client, message):
     else:
         await message.reply_text('Something went wrong!')
 
-@Client.on_message(filters.command("request"))
-async def request_movie(client, message):
-    movie_name = " ".join(message.command[1:])  # Extract movie name
-    if not movie_name:
-        await message.reply("Please provide a movie name.")
-        return
 
-    # Yahan movie request ka logic implement karein, jaise database me check karna
-    movie_found = await check_movie_in_database(movie_name)
-    if movie_found:
-        await message.reply(f"{movie_name} is available!")
+# Store pending requests for notification
+pending_requests = {}  # Format: {"movie_name": [user_ids]}
+
+@Client.on_message(filters.command("request"))
+async def handle_movie_request(client, message):
+    movie_name = message.text.split("/request ", 1)[1].strip()
+    user_id = message.from_user.id
+
+    # Check if movie already exists in the database
+    movie_exists = await check_movie_in_database(movie_name)
+
+    if movie_exists:
+        await message.reply_text(f"🎬 '{movie_name}' already available. Please search for it.")
     else:
-        await message.reply(f"{movie_name} is not available. We will notify you once it's uploaded.")
-        # Add logic to handle notifying when the movie is available
+        # Add user to pending requests for this movie
+        if movie_name in pending_requests:
+            pending_requests[movie_name].append(user_id)
+        else:
+            pending_requests[movie_name] = [user_id]
+
+        await message.reply_text(f"Your request for '{movie_name}' has been noted. You will be notified when it becomes available.")
+
+async def check_and_notify_movie_availability(client, movie_name):
+    """
+    Movie upload hone par pending users ko notify karega.
+    
+    Args:
+        client (Client): Bot instance jo message send karega.
+        movie_name (str): Movie ka naam jo ab available hai.
+    """
+    if movie_name in pending_requests:
+        user_ids = pending_requests.pop(movie_name)
+        await notify_users_about_movie(client, user_ids, movie_name)
 
 @Client.on_message(filters.command('set_template'))
 async def save_template(client, message):
