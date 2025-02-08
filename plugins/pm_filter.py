@@ -5,7 +5,7 @@ import math
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
 from Script import script
 from datetime import datetime, timedelta
-from info import STICKERS_IDS, ADMINS, URL, MAX_BTN, BIN_CHANNEL, IS_STREAM, DELETE_TIME, FILMS_LINK, AUTH_CHANNEL, IS_VERIFY, VERIFY_EXPIRE, LOG_CHANNEL, SUPPORT_GROUP, SUPPORT_LINK, UPDATES_LINK, PICS, PROTECT_CONTENT, IMDB, AUTO_FILTER, SPELL_CHECK, IMDB_TEMPLATE, AUTO_DELETE, LANGUAGES, IS_FSUB, PAYMENT_QR, GROUP_FSUB, PM_SEARCH, UPI_ID
+from info import SEASONS, STICKERS_IDS, ADMINS, URL, MAX_BTN, BIN_CHANNEL, IS_STREAM, DELETE_TIME, FILMS_LINK, AUTH_CHANNEL, IS_VERIFY, VERIFY_EXPIRE, LOG_CHANNEL, SUPPORT_GROUP, SUPPORT_LINK, UPDATES_LINK, PICS, PROTECT_CONTENT, IMDB, AUTO_FILTER, SPELL_CHECK, IMDB_TEMPLATE, AUTO_DELETE, LANGUAGES, IS_FSUB, PAYMENT_QR, GROUP_FSUB, PM_SEARCH, UPI_ID
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ChatPermissions, InputMediaPhoto
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid, ChatAdminRequired
@@ -460,6 +460,129 @@ async def advantage_spoll_choker(bot, query):
         except:
             pass
             
+@Client.on_callback_query(filters.regex(r"^seasons#"))
+async def seasons_cb_handler(client: Client, query: CallbackQuery):
+    _, key, offset, req = query.data.split("#")
+    if int(req) != query.from_user.id:
+        return await query.answer(script.ALRT_TXT, show_alert=True) 
+    btn= []
+    for i in range(0, len(SEASONS)-1, 3):
+        btn.append([
+            InlineKeyboardButton(
+                text=SEASONS[i].title(),
+                callback_data=f"season_search#{SEASONS[i].lower()}#{key}#0#{offset}#{req}"
+            ),
+            InlineKeyboardButton(
+                text=SEASONS[i+1].title(),
+                callback_data=f"season_search#{SEASONS[i+1].lower()}#{key}#0#{offset}#{req}"
+            ),
+            InlineKeyboardButton(
+                text=SEASONS[i+2].title(),
+                callback_data=f"season_search#{SEASONS[i+2].lower()}#{key}#0#{offset}#{req}"
+            ),
+        ])
+
+    btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
+    await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ sᴇᴀsᴏɴ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, ᴄʜᴏᴏsᴇ ғʀᴏᴍ ʜᴇʀᴇ ↓↓</b>", reply_markup=InlineKeyboardMarkup(btn))
+    return
+    
+@Client.on_callback_query(filters.regex(r"^season_search#"))
+async def season_search(client: Client, query: CallbackQuery):
+    try:
+        _, season, key, offset, original_offset, req = query.data.split("#")
+        seas = int(season.split(" ", 1)[1])
+        seas = f"S0{seas}" if seas < 10 else f"S{seas}"
+
+        if int(req) != query.from_user.id:
+            return await query.answer(script.ALRT_TXT, show_alert=True)
+
+        offset = int(offset)
+        search = temp.BUTTONS.get(key)
+        cap = temp.CAP.get(key)
+        
+        if not search:
+            return await query.answer(script.OLD_ALRT_TXT.format(query.from_user.first_name), show_alert=True)
+        
+        search = search.replace("_", " ")
+
+        # Get search results with error handling
+        try:
+            files, n_offset, total = await get_search_results(f"{search} {seas}", max_results=int(temp.MAX_BTN), offset=offset)
+            files2, n_offset2, total2 = await get_search_results(f"{search} {season}", max_results=int(temp.MAX_BTN), offset=offset)
+            total += total2
+        except Exception as e:
+            return await query.answer(f"Error fetching results: {str(e)}", show_alert=True)
+
+        # Normalize offset values
+        try:
+            n_offset = int(n_offset)
+        except:
+            try:
+                n_offset = int(n_offset2)
+            except:
+                n_offset = 0
+
+        # Filter files efficiently
+        filtered_files = [file for file in files if re.search(seas, file.file_name, re.IGNORECASE)] or \
+                         [file for file in files2 if re.search(season, file.file_name, re.IGNORECASE)]
+        
+        if not filtered_files:
+            return await query.answer(f"Sorry, {season.title()} not found for {search}", show_alert=True)
+
+        batch_ids = filtered_files
+        temp.FILES_ID[f"{query.message.chat.id}-{query.id}"] = batch_ids
+        batch_link = f"batchfiles#{query.message.chat.id}#{query.id}#{query.from_user.id}"
+        reqnxt = query.from_user.id if query.from_user else 0
+        settings = await get_settings(query.message.chat.id)
+        temp.CHAT[query.from_user.id] = query.message.chat.id
+
+        del_msg = (f"\n\n<b>⚠️ This message will auto-delete after <code>{get_readable_time(temp.DELETE_TIME)}</code> "
+                   "to avoid copyright issues</b>") if settings.get("auto_delete") else ""
+
+        files_link = ""
+        btn = []
+
+        if settings.get("links"):
+            for file_num, file in enumerate(filtered_files, start=1):
+                files_link += f"""<b>\n\n{file_num}. <a href="https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}">[{get_size(file.file_size)}] {file.file_name}</a></b>"""
+        else:
+            btn = [[InlineKeyboardButton(text=f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')]
+                   for file in filtered_files]
+
+        if settings.get("shortlink"):
+            btn.insert(0, [
+                InlineKeyboardButton("♻️ Send All ♻️", url=await get_shortlink(settings["url"], settings["api"], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))
+            ])
+        else:
+            btn.insert(0, [
+                InlineKeyboardButton("♻️ Send All ♻️", callback_data=f"send_all#{key}"),
+                InlineKeyboardButton("📰 Languages 📰", callback_data=f"languages#{key}#{req}#{offset}")
+            ])
+            btn.insert(1, [
+                InlineKeyboardButton("✨ Quality 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
+                InlineKeyboardButton("🚩 Year ⌛", callback_data=f"years#{key}#{offset}#{req}")
+            ])
+            btn.insert(2, [
+                InlineKeyboardButton("✨ Choose Season 🍿", callback_data=f"seasons#{key}#{offset}#{req}")
+            ])
+
+        # Pagination buttons
+        total_pages = math.ceil(total / temp.MAX_BTN)
+        if n_offset:
+            btn.append([
+                InlineKeyboardButton(text=f"1/{total_pages}", callback_data="buttons"),
+                InlineKeyboardButton(text="Next »", callback_data=f"lang_next#{req}#{key}#lang#{n_offset}#{offset}")
+            ])
+        else:
+            btn.append([InlineKeyboardButton(text="🚸 No More Pages 🚸", callback_data="buttons")])
+
+        btn.append([InlineKeyboardButton(text="⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{offset}")])
+
+        await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+
+    except Exception as e:
+        await query.answer(f"Unexpected error: {str(e)}", show_alert=True)
+
 @Client.on_callback_query(filters.regex(r"^Upi"))
 async def upi_payment_info(client, callback_query):
     cmd = callback_query.message
