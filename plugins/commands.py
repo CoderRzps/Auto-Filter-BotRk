@@ -156,25 +156,31 @@ async def aiRes(_, message):
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
     botid = client.me.id
+    user_mention = message.from_user.mention if message.from_user else "User"
+
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         if not await db.get_chat(message.chat.id):
             total = await client.get_chat_members_count(message.chat.id)
             username = f'@{message.chat.username}' if message.chat.username else 'Private'
             await client.send_message(LOG_CHANNEL, script.NEW_GROUP_TXT.format(message.chat.title, message.chat.id, username, total))       
             await db.add_chat(message.chat.id, message.chat.title)
+        
         wish = get_wish()
         btn = [[
             InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs ᴄʜᴀɴɴᴇʟ ⚡️', url=UPDATES_LINK),
             InlineKeyboardButton('💡 Support Group 💡', url=SUPPORT_LINK)
         ]]
-        await message.reply(text=f"<b>ʜᴇʏ {message.from_user.mention}, <i>{wish}</i>\nʜᴏᴡ ᴄᴀɴ ɪ ʜᴇʟᴘ ʏᴏᴜ??</b>", reply_markup=InlineKeyboardMarkup(btn))
+        await message.reply(
+            text=f"<b>ʜᴇʏ {user_mention}, <i>{wish}</i>\nʜᴏᴡ ᴄᴀɴ ɪ ʜᴇʟᴘ ʏᴏᴜ??</b>", 
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
         return 
         
-    if not await db.is_user_exist(message.from_user.id):
+    if message.from_user and not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id, message.from_user.first_name)
-        await client.send_message(LOG_CHANNEL, script.NEW_USER_TXT.format(message.from_user.mention, message.from_user.id))
+        await client.send_message(LOG_CHANNEL, script.NEW_USER_TXT.format(user_mention, message.from_user.id))
 
-    verify_status = await get_verify_status(message.from_user.id)
+    verify_status = await get_verify_status(message.from_user.id) if message.from_user else {"is_verified": False, "verified_time": 0}
     if verify_status['is_verified'] and VERIFY_EXPIRE < (time.time() - verify_status['verified_time']):
         await update_verify_status(message.from_user.id, is_verified=False)
     
@@ -193,7 +199,7 @@ async def start(client, message):
         reply_markup = InlineKeyboardMarkup(buttons)
         await message.reply_photo(
             photo=random.choice(PICS),
-            caption=script.START_TXT.format(message.from_user.mention, get_wish()),
+            caption=script.START_TXT.format(user_mention, get_wish()),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
