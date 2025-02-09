@@ -487,10 +487,6 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
     await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ sᴇᴀsᴏɴ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, ᴄʜᴏᴏsᴇ ғʀᴏᴍ ʜᴇʀᴇ ↓↓</b>", reply_markup=InlineKeyboardMarkup(btn))
     return
 
-from pyrogram import Client, filters, enums
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-import re, math
-
 @Client.on_callback_query(filters.regex(r"^season_search#"))
 async def season_search(client: Client, query: CallbackQuery):
     _, season, key, offset, orginal_offset, req = query.data.split("#")
