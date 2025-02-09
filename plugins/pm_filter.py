@@ -15,10 +15,17 @@ from database.users_chats_db import db
 from database.ia_filterdb import Media, get_file_details, get_search_results,delete_files
 from fuzzywuzzy import process
 
+# Ensure attributes exist before using them
+if not hasattr(temp, "CHAT"):
+    temp.CHAT = {}
+
+if not hasattr(temp, "FILES_ID"):
+    temp.FILES_ID = {}
+
 BUTTONS = {}
 CAP = {}
 REACTIONS = ["🔥", "❤️", "😍", "⚡"]
-FILES_ID = {}
+#FILES_ID = {}
 
 @Client.on_callback_query(filters.regex(r"^stream"))
 async def aks_downloader(bot, query):
