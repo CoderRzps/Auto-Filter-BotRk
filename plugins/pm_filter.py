@@ -365,8 +365,11 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
         InlineKeyboardButton(text="⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{offset}")
     ])
     
-    await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
-
+    await query.message.edit_text(
+    cap + files_link + del_msg,
+    disable_web_page_preview=True,
+    reply_markup=InlineKeyboardMarkup([b if isinstance(b, list) else [b] for b in btn])
+    )
 @Client.on_callback_query(filters.regex(r"^lang_next"))
 async def lang_next_page(bot, query):
     ident, req, key, lang, l_offset, offset = query.data.split("#")
