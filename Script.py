@@ -142,9 +142,7 @@ I can't find the <b>{}</b> in my database! 🥲
 
 - ᴅᴇᴠʟᴏᴘᴇʀ - @Rkbotz"""
 
-
-# script.py
-
-  OLD_ALRT_TXT = "Hello {}, requested season not found!"
-  ALRT_TXT = "You are not authorized to access this!"
+    # Ye dono lines class ke andar properly indent honi chahiye
+    OLD_ALRT_TXT = "Hello {}, requested season not found!"
+    ALRT_TXT = "You are not authorized to access this!"
 
