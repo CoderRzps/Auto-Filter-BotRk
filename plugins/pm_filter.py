@@ -498,16 +498,19 @@ async def season_search(client: Client, query: CallbackQuery):
     
     if int(req) != query.from_user.id:
         return await query.answer(script.ALRT_TXT, show_alert=True)	
+
     offset = int(offset)
     search = BUTTONS.get(key)
     cap = CAP.get(key)
     if not search:
-        await query.answer(script.OLD_ALRT_TXT.format(query.from_user.first_name),show_alert=True)
+        await query.answer(script.OLD_ALRT_TXT.format(query.from_user.first_name), show_alert=True)
         return 
+
     search = search.replace("_", " ")
     files, n_offset, total = await get_search_results(f"{search} {seas}", max_results=int(MAX_BTN), offset=offset)
     files2, n_offset2, total2 = await get_search_results(f"{search} {season}", max_results=int(MAX_BTN), offset=offset)
     total += total2
+
     try:
         n_offset = int(n_offset)
     except:
@@ -515,6 +518,7 @@ async def season_search(client: Client, query: CallbackQuery):
             n_offset = int(n_offset2)
         except : 
             n_offset = 0
+
     files = [file for file in files if re.search(seas, file.file_name, re.IGNORECASE)]
     
     if not files:
@@ -524,6 +528,11 @@ async def season_search(client: Client, query: CallbackQuery):
             return
 
     batch_ids = files
+
+    # ✅ Ensure FILES_ID exists before using it
+    if not hasattr(temp, "FILES_ID"):
+        temp.FILES_ID = {}
+
     temp.FILES_ID[f"{query.message.chat.id}-{query.id}"] = batch_ids
     batch_link = f"batchfiles#{query.message.chat.id}#{query.id}#{query.from_user.id}"
     reqnxt = query.from_user.id if query.from_user else 0
