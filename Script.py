@@ -141,3 +141,10 @@ I can't find the <b>{}</b> in my database! 🥲
 - ꜱᴏᴜʀᴄᴇ - <a href=https://github.com/Rishikesh-Sharma09/Auto-Filter-Bot>ʜᴇʀᴇ</a>
 
 - ᴅᴇᴠʟᴏᴘᴇʀ - @Rkbotz"""
+
+
+# script.py
+
+  OLD_ALRT_TXT = "Hello {}, requested season not found!"
+  ALRT_TXT = "You are not authorized to access this!"
+
