@@ -464,10 +464,12 @@ async def advantage_spoll_choker(bot, query):
 @Client.on_callback_query(filters.regex(r"^seasons#"))
 async def seasons_cb_handler(client: Client, query: CallbackQuery):
     _, key, offset, req = query.data.split("#")
+    
     if int(req) != query.from_user.id:
-        return await query.answer(script.ALRT_TXT, show_alert=True) 
-    btn= []
-    for i in range(0, len(SEASONS)-1, 3):
+        return await query.answer(ALRT_TXT, show_alert=True) 
+
+    btn = []
+    for i in range(0, len(SEASONS) - 1, 3):
         btn.append([
             InlineKeyboardButton(
                 text=SEASONS[i].title(),
@@ -483,46 +485,36 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
             ),
         ])
 
-    btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
-    await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ sᴇᴀsᴏɴ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, ᴄʜᴏᴏsᴇ ғʀᴏᴍ ʜᴇʀᴇ ↓↓</b>", reply_markup=InlineKeyboardMarkup(btn))
+    btn.append([InlineKeyboardButton(text="⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{offset}")])
+    
+    await query.message.edit_text(
+        "<b>In which season do you want? Choose from here ↓↓</b>",
+        reply_markup=InlineKeyboardMarkup(btn)
+    )
     return
 
 @Client.on_callback_query(filters.regex(r"^season_search#"))
 async def season_search(client: Client, query: CallbackQuery):
     _, season, key, offset, orginal_offset, req = query.data.split("#")
-    seas = int(season.split(' ', 1)[1])
-    seas = f'S0{seas}' if seas < 10 else f'S{seas}'
     
     if int(req) != query.from_user.id:
-        return await query.answer(script.ALRT_TXT, show_alert=True)    
+        return await query.answer(ALRT_TXT, show_alert=True)    
     
     offset = int(offset)
-    search = BUTTONS.get(key)
-    cap = CAP.get(key)
+    search = temp.BUTTONS.get(key)
+    cap = temp.CAP.get(key)
     
     if not search:
-        await query.answer(script.OLD_ALRT_TXT.format(query.from_user.first_name), show_alert=True)
+        await query.answer(OLD_ALRT_TXT.format(query.from_user.first_name), show_alert=True)
         return 
     
     search = search.replace("_", " ")
     
-    files, n_offset, total = await get_search_results(f"{search} {seas}", max_results=int(MAX_BTN), offset=offset)
-    files2, n_offset2, total2 = await get_search_results(f"{search} {season}", max_results=int(MAX_BTN), offset=offset)
-    
-    total += total2
-    
-    try:
-        n_offset = int(n_offset)
-    except:
-        n_offset = int(n_offset2) if n_offset2 else 0
-    
-    files = [file for file in files if re.search(seas, file.file_name, re.IGNORECASE)]
+    files, n_offset, total = await get_search_results(f"{search} {season}", max_results=int(MAX_BTN), offset=offset)
     
     if not files:
-        files = [file for file in files2 if re.search(season, file.file_name, re.IGNORECASE)]
-        if not files:
-            await query.answer(f"Sorry, {season.title()} not found for {search}", show_alert=True)
-            return
+        await query.answer(f"Sorry, {season.title()} not found for {search}", show_alert=True)
+        return
 
     temp.FILES_ID[f"{query.message.chat.id}-{query.id}"] = files
     temp.CHAT[query.from_user.id] = query.message.chat.id
@@ -533,14 +525,8 @@ async def season_search(client: Client, query: CallbackQuery):
         if settings["auto_delete"] else ''
     )
     
-    files_link = ''
-    btn = []
-    if settings['links']:
-        for file_num, file in enumerate(files, start=1):
-            files_link += f"<b>\n\n{file_num}. <a href=https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}>[{get_size(file.file_size)}] {file.file_name}</a></b>"
-    else:
-        btn = [[InlineKeyboardButton(f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')] for file in files]
-    
+    btn = [[InlineKeyboardButton(f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')] for file in files]
+
     btn.insert(0, [InlineKeyboardButton("♻️ Send All", callback_data=f"send_all#{key}")])
     btn.insert(1, [InlineKeyboardButton("📰 Languages", callback_data=f"languages#{key}#{req}#{offset}")])
     btn.insert(2, [InlineKeyboardButton("✨ Quality", callback_data=f"qualities#{key}#{offset}#{req}")])
@@ -549,16 +535,6 @@ async def season_search(client: Client, query: CallbackQuery):
     
     if not n_offset:
         btn.append([InlineKeyboardButton("🚸 No More Pages 🚸", callback_data="buttons")])
-    elif offset == 0:
-        btn.append([
-            InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages"),
-            InlineKeyboardButton("Next ⪼", callback_data=f"season_search#{season}#{key}#{n_offset}#{orginal_offset}#{req}")
-        ])
-    elif n_offset == 0:
-        btn.append([
-            InlineKeyboardButton("⪻ Back", callback_data=f"season_search#{season}#{key}#{offset - int(MAX_BTN)}#{orginal_offset}#{req}"),
-            InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages")
-        ])
     else:
         btn.append([
             InlineKeyboardButton("⪻ Back", callback_data=f"season_search#{season}#{key}#{offset - int(MAX_BTN)}#{orginal_offset}#{req}"),
@@ -568,12 +544,15 @@ async def season_search(client: Client, query: CallbackQuery):
     
     btn.append([InlineKeyboardButton("⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{orginal_offset}")])
     
-    await query.message.edit_text(
-        str(cap) + str(files_link) + str(del_msg),
-        disable_web_page_preview=True,
-        parse_mode=enums.ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(btn) if btn else None
-    )
+    if btn:  # Ensure buttons exist before passing
+        await query.message.edit_text(
+            str(cap) + str(del_msg),
+            disable_web_page_preview=True,
+            parse_mode=enums.ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
+    else:
+        await query.answer("Error: No buttons available!", show_alert=True
 
 @Client.on_callback_query(filters.regex(r"^years#"))
 async def years_cb_handler(client: Client, query: CallbackQuery):
