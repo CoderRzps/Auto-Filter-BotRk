@@ -600,9 +600,12 @@ async def season_search(client: Client, query: CallbackQuery):
 
     btn.append([
         InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{orginal_offset}"),])
-    await query.message.edit_text(cap + link + del_msg, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML, reply_markup=InlineKeyboardMarkup(btn))
-    return
-
+    await query.message.edit_text(
+    str(cap) + str(files_link) + str(del_msg),  # ✅ Ensure all are strings
+    disable_web_page_preview=True, 
+    parse_mode=enums.ParseMode.HTML, 
+    reply_markup=InlineKeyboardMarkup(btn)
+)
 
 @Client.on_callback_query(filters.regex(r"^years#"))
 async def years_cb_handler(client: Client, query: CallbackQuery):
