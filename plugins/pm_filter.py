@@ -288,6 +288,10 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
     await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ʟᴀɴɢᴜᴀɢᴇ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
 
+from pyrogram import Client, filters
+from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+import math
+
 @Client.on_callback_query(filters.regex(r"^lang_search"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key, offset, req = query.data.split("#")
@@ -302,51 +306,65 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
 
     files, l_offset, total_results = await get_search_results(search, lang=lang)
     if not files:
-        await query.answer(f"sᴏʀʀʏ '{lang.title()}' ʟᴀɴɢᴜᴀɢᴇ ꜰɪʟᴇs ɴᴏᴛ ꜰᴏᴜɴᴅ 😕", show_alert=1)
+        await query.answer(f"Sorry '{lang.title()}' language files not found 😕", show_alert=True)
         return
+    
     temp.FILES[key] = files
     settings = await get_settings(query.message.chat.id)
-    del_msg = f"\n\n<b>⚠️ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇ ᴀꜰᴛᴇʀ <code>{get_readable_time(DELETE_TIME)}</code> ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs</b>" if settings["auto_delete"] else ''
+    del_msg = f"\n\n<b>⚠️ This message will be auto-deleted after <code>{get_readable_time(DELETE_TIME)}</code> to avoid copyright issues</b>" if settings["auto_delete"] else ''
     files_link = ''
 
+    btn = []
+    
+    # Row 1: Files List or Links
     if settings['links']:
-        btn = []
         for file_num, file in enumerate(files, start=1):
             files_link += f"""<b>\n\n{file_num}. <a href=https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}>[{get_size(file.file_size)}] {file.file_name}</a></b>"""
     else:
-        btn = [[
+        btn.append([
             InlineKeyboardButton(text=f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')
-        ]
-            for file in files
-        ]
-    if settings['shortlink']:
-        btn.insert(0,
-            [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))]
-        )
-    else:
-        btn.insert(0,
-            [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", callback_data=f"send_all#{key}")],
-            [InlineKeyboardButton("📰 ʟᴀɴɢᴜᴀɢᴇs 📰", callback_data=f"languages#{key}#{req}#0")],
-            )
-        btn.insert(1, [
-            InlineKeyboardButton("✨ ǫᴜᴀʟɪᴛʏ 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
-            InlineKeyboardButton("🚩 ʏᴇᴀʀ ⌛", callback_data=f"years#{key}#{offset}#{req}"),
-            ])
-        btn.insert(2, [
-            InlineKeyboardButton("✨ ᴄʜᴏᴏsᴇ season🍿", callback_data=f"seasons#{key}#{offset}#{req}")
-            ])
-
+        ] for file in files)
     
-    if l_offset != "":
-        btn.append(
-            [InlineKeyboardButton(text=f"1/{math.ceil(int(total_results) / MAX_BTN)}", callback_data="buttons"),
-             InlineKeyboardButton(text="ɴᴇxᴛ »", callback_data=f"lang_next#{req}#{key}#{lang}#{l_offset}#{offset}")]
-        )
+    # Row 2: Send All Button
+    if settings['shortlink']:
+        btn.append([
+            InlineKeyboardButton("♻️ Send All ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))
+        ])
     else:
-        btn.append(
-            [InlineKeyboardButton(text="🚸 ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇs 🚸", callback_data="buttons")]
-        )
-    btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
+        btn.append([
+            InlineKeyboardButton("♻️ Send All ♻️", callback_data=f"send_all#{key}")
+        ])
+    
+    # Row 3: Language Selection
+    btn.append([
+        InlineKeyboardButton("📰 Languages 📰", callback_data=f"languages#{key}#{req}#0")
+    ])
+    
+    # Row 4: Quality & Year Selection
+    btn.append([
+        InlineKeyboardButton("✨ Quality 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
+        InlineKeyboardButton("🚩 Year ⌛", callback_data=f"years#{key}#{offset}#{req}")
+    ])
+    
+    # Row 5: Season Selection & Pagination
+    btn.append([
+        InlineKeyboardButton("✨ Choose Season 🍿", callback_data=f"seasons#{key}#{offset}#{req}")
+    ])
+    
+    if l_offset:
+        btn.append([
+            InlineKeyboardButton(text=f"1/{math.ceil(int(total_results) / MAX_BTN)}", callback_data="buttons"),
+            InlineKeyboardButton(text="Next »", callback_data=f"lang_next#{req}#{key}#{lang}#{l_offset}#{offset}")
+        ])
+    else:
+        btn.append([
+            InlineKeyboardButton(text="🚸 No More Pages 🚸", callback_data="buttons")
+        ])
+    
+    btn.append([
+        InlineKeyboardButton(text="⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{offset}")
+    ])
+    
     await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
 
 @Client.on_callback_query(filters.regex(r"^lang_next"))
