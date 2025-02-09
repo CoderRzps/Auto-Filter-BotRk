@@ -288,44 +288,43 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
     await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ʟᴀɴɢᴜᴀɢᴇ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
 
-from pyrogram import Client, filters
-from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-import math
-
 @Client.on_callback_query(filters.regex(r"^lang_search"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key, offset, req = query.data.split("#")
+    
     if int(req) != query.from_user.id:
         return await query.answer(f"Hello {query.from_user.first_name},\nDon't Click Other Results!", show_alert=True)
 
     search = BUTTONS.get(key)
     cap = CAP.get(key)
+
     if not search:
-        await query.answer(f"Hello {query.from_user.first_name},\nSend New Request Again!", show_alert=True)
-        return 
+        return await query.answer(f"Hello {query.from_user.first_name},\nSend New Request Again!", show_alert=True)
 
     files, l_offset, total_results = await get_search_results(search, lang=lang)
-    if not files:
-        await query.answer(f"Sorry '{lang.title()}' language files not found 😕", show_alert=True)
-        return
     
+    if not files:
+        return await query.answer(f"Sorry '{lang.title()}' language files not found 😕", show_alert=True)
+
     temp.FILES[key] = files
     settings = await get_settings(query.message.chat.id)
-    del_msg = f"\n\n<b>⚠️ This message will be auto-deleted after <code>{get_readable_time(DELETE_TIME)}</code> to avoid copyright issues</b>" if settings["auto_delete"] else ''
-    files_link = ''
-
-    btn = []
     
-    # Row 1: Files List or Links
+    del_msg = f"\n\n<b>⚠️ This message will be auto-deleted after <code>{get_readable_time(DELETE_TIME)}</code> to avoid copyright issues</b>" if settings["auto_delete"] else ''
+    
+    files_link = ''
+    btn = []
+
+    # ✅ Fix: List comprehension to store buttons properly
     if settings['links']:
         for file_num, file in enumerate(files, start=1):
             files_link += f"""<b>\n\n{file_num}. <a href=https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}>[{get_size(file.file_size)}] {file.file_name}</a></b>"""
     else:
-        btn.append([
-            InlineKeyboardButton(text=f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')
-        ] for file in files)
-    
-    # Row 2: Send All Button
+        btn += [
+            [InlineKeyboardButton(text=f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')]
+            for file in files
+        ]
+
+    # ✅ Fix: Proper "Send All" button
     if settings['shortlink']:
         btn.append([
             InlineKeyboardButton("♻️ Send All ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))
@@ -334,23 +333,21 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
         btn.append([
             InlineKeyboardButton("♻️ Send All ♻️", callback_data=f"send_all#{key}")
         ])
-    
-    # Row 3: Language Selection
+
+    # ✅ Fix: Correct Callback Buttons
     btn.append([
         InlineKeyboardButton("📰 Languages 📰", callback_data=f"languages#{key}#{req}#0")
     ])
-    
-    # Row 4: Quality & Year Selection
+
     btn.append([
         InlineKeyboardButton("✨ Quality 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
         InlineKeyboardButton("🚩 Year ⌛", callback_data=f"years#{key}#{offset}#{req}")
     ])
-    
-    # Row 5: Season Selection & Pagination
+
     btn.append([
         InlineKeyboardButton("✨ Choose Season 🍿", callback_data=f"seasons#{key}#{offset}#{req}")
     ])
-    
+
     if l_offset:
         btn.append([
             InlineKeyboardButton(text=f"1/{math.ceil(int(total_results) / MAX_BTN)}", callback_data="buttons"),
@@ -360,16 +357,14 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
         btn.append([
             InlineKeyboardButton(text="🚸 No More Pages 🚸", callback_data="buttons")
         ])
-    
+
     btn.append([
         InlineKeyboardButton(text="⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{offset}")
     ])
-    
-    await query.message.edit_text(
-    cap + files_link + del_msg,
-    disable_web_page_preview=True,
-    reply_markup=InlineKeyboardMarkup([b if isinstance(b, list) else [b] for b in btn])
-    )
+
+    # ✅ Fix: Convert btn list to InlineKeyboardMarkup and pass correctly
+    await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+
 @Client.on_callback_query(filters.regex(r"^lang_next"))
 async def lang_next_page(bot, query):
     ident, req, key, lang, l_offset, offset = query.data.split("#")
