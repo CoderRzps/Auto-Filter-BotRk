@@ -197,7 +197,6 @@ async def pm_search(client, message):
 async def next_page(bot, query):
     ident, req, key, offset = query.data.split("_")
 
-    # Agar request kisi aur user ne ki ho toh alert bhej do
     if int(req) not in [query.from_user.id, 0]:
         return await query.answer(f"Hello {query.from_user.first_name},\nDon't Click Other Results!", show_alert=True)
 
@@ -215,19 +214,15 @@ async def next_page(bot, query):
 
     files, n_offset, total = await get_search_results(search, offset=offset)
 
-    try:
-        n_offset = int(n_offset)
-    except ValueError:
-        n_offset = 0
-
     if not files:
+        await query.answer("No results found!", show_alert=True)
         return
 
     temp.FILES[key] = files
     settings = await get_settings(query.message.chat.id)
 
     del_msg = (
-        f"\n\n<b>⚠️ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇ ᴀꜰᴛᴇʀ <code>{get_readable_time(DELETE_TIME)}</code> ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs</b>"
+        f"\n\n<b>⚠️ This message will be auto-deleted after <code>{get_readable_time(DELETE_TIME)}</code> to avoid copyright issues</b>"
         if settings["auto_delete"] else ''
     )
 
@@ -243,44 +238,48 @@ async def next_page(bot, query):
 
     if settings["shortlink"]:
         btn.insert(0, [
-            InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings["url"], settings["api"], f"https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}")),
-            InlineKeyboardButton("📰 ʟᴀɴɢᴜᴀɢᴇs 📰", callback_data=f"languages#{key}#{req}#{offset}")
+            InlineKeyboardButton("♻️ Send All ♻️", url=await get_shortlink(settings["url"], settings["api"], f"https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}")),
+            InlineKeyboardButton("📰 Languages 📰", callback_data=f"languages#{key}#{req}#{offset}")
         ])
     else:
-        btn.insert(0, [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", callback_data=f"send_all#{key}")])
+        btn.insert(0, [InlineKeyboardButton("♻️ Send All ♻️", callback_data=f"send_all#{key}")])
     
     btn.extend([
-        [InlineKeyboardButton("✨ ǫᴜᴀʟɪᴛʏ 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
-         InlineKeyboardButton("🚩 ʏᴇᴀʀ ⌛", callback_data=f"years#{key}#{offset}#{req}")],
-        [InlineKeyboardButton("✨ ᴄʜᴏᴏsᴇ season🍿", callback_data=f"seasons#{key}#{offset}#{req}")]
+        [InlineKeyboardButton("✨ Quality 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
+         InlineKeyboardButton("🚩 Year ⌛", callback_data=f"years#{key}#{offset}#{req}")],
+        [InlineKeyboardButton("✨ Choose Season 🍿", callback_data=f"seasons#{key}#{offset}#{req}")]
     ])
 
-    # Pagination buttons
     prev_offset = max(0, offset - MAX_BTN) if offset > 0 else None
     page_info = f"{math.ceil(offset / MAX_BTN) + 1}/{math.ceil(total / MAX_BTN)}"
 
     if n_offset == 0:
         btn.append([
-            InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data=f"next_{req}_{key}_{prev_offset}") if prev_offset else None,
+            InlineKeyboardButton("« Back", callback_data=f"next_{req}_{key}_{prev_offset}") if prev_offset else None,
             InlineKeyboardButton(page_info, callback_data="buttons")
         ])
     else:
         btn.append([
-            InlineKeyboardButton("« ʙᴀᴄᴋ", callback_data=f"next_{req}_{key}_{prev_offset}") if prev_offset else None,
+            InlineKeyboardButton("« Back", callback_data=f"next_{req}_{key}_{prev_offset}") if prev_offset else None,
             InlineKeyboardButton(page_info, callback_data="buttons"),
-            InlineKeyboardButton("ɴᴇxᴛ »", callback_data=f"next_{req}_{key}_{n_offset}")
+            InlineKeyboardButton("Next »", callback_data=f"next_{req}_{key}_{n_offset}")
         ])
 
-    btn.append([InlineKeyboardButton("🚫 ᴄʟᴏsᴇ 🚫", callback_data="close_data")])
+    btn.append([InlineKeyboardButton("🚫 Close 🚫", callback_data="close_data")])
+
+    # **Ensure btn is not empty**
+    if not btn:
+        btn = [[InlineKeyboardButton("🚫 Close 🚫", callback_data="close_data")]]
 
     try:
         await query.message.edit_text(
             cap + files_link + del_msg,
-            reply_markup=InlineKeyboardMarkup([b for b in btn if b]),  # Empty lists remove karne ke liye
+            reply_markup=InlineKeyboardMarkup([b for b in btn if b]),  
             disable_web_page_preview=True
         )
     except MessageNotModified:
         pass
+
 
 @Client.on_callback_query(filters.regex(r"^languages"))
 async def languages_cb_handler(client: Client, query: CallbackQuery):
