@@ -552,7 +552,7 @@ async def season_search(client: Client, query: CallbackQuery):
             reply_markup=InlineKeyboardMarkup(btn)
         )
     else:
-        await query.answer("Error: No buttons available!", show_alert=True
+        await query.answer("Error: No buttons available!", show_alert=True)
 
 @Client.on_callback_query(filters.regex(r"^years#"))
 async def years_cb_handler(client: Client, query: CallbackQuery):
