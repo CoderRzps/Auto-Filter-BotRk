@@ -494,17 +494,18 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
     await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ sᴇᴀsᴏɴ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, ᴄʜᴏᴏsᴇ ғʀᴏᴍ ʜᴇʀᴇ ↓↓</b>", reply_markup=InlineKeyboardMarkup(btn))
     return
 
+from pyrogram import Client, filters, enums
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+import re, math
+
 @Client.on_callback_query(filters.regex(r"^season_search#"))
 async def season_search(client: Client, query: CallbackQuery):
     _, season, key, offset, orginal_offset, req = query.data.split("#")
     seas = int(season.split(' ', 1)[1])
-    if seas < 10:
-        seas = f'S0{seas}'
-    else:
-        seas = f'S{seas}'
+    seas = f'S0{seas}' if seas < 10 else f'S{seas}'
     
     if int(req) != query.from_user.id:
-        return await query.answer(script.ALRT_TXT, show_alert=True)	
+        return await query.answer(script.ALRT_TXT, show_alert=True)    
     
     offset = int(offset)
     search = BUTTONS.get(key)
@@ -524,88 +525,66 @@ async def season_search(client: Client, query: CallbackQuery):
     try:
         n_offset = int(n_offset)
     except:
-        try: 
-            n_offset = int(n_offset2)
-        except : 
-            n_offset = 0
+        n_offset = int(n_offset2) if n_offset2 else 0
     
     files = [file for file in files if re.search(seas, file.file_name, re.IGNORECASE)]
     
     if not files:
         files = [file for file in files2 if re.search(season, file.file_name, re.IGNORECASE)]
         if not files:
-            await query.answer(f"sᴏʀʀʏ {season.title()} ɴᴏᴛ ғᴏᴜɴᴅ ғᴏʀ {search}", show_alert=1)
+            await query.answer(f"Sorry, {season.title()} not found for {search}", show_alert=True)
             return
 
-    batch_ids = files
-    temp.FILES_ID[f"{query.message.chat.id}-{query.id}"] = batch_ids  # ✅ Fix FILES_ID error
-    temp.CHAT[query.from_user.id] = query.message.chat.id  # ✅ Fix CHAT error
+    temp.FILES_ID[f"{query.message.chat.id}-{query.id}"] = files
+    temp.CHAT[query.from_user.id] = query.message.chat.id
     
-    batch_link = f"batchfiles#{query.message.chat.id}#{query.id}#{query.from_user.id}"
-    reqnxt = query.from_user.id if query.from_user else 0
     settings = await get_settings(query.message.chat.id)
-
     del_msg = (
-        f"\n\n<b>⚠️ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇ ᴀꜰᴛᴇʀ <code>{get_readable_time(DELETE_TIME)}</code> "
-        f"ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs</b>" if settings["auto_delete"] else ''
+        f"\n\n<b>⚠️ This message will auto-delete after <code>{get_readable_time(DELETE_TIME)}</code> to avoid copyright issues.</b>"
+        if settings["auto_delete"] else ''
     )
     
     files_link = ''
-
+    btn = []
     if settings['links']:
-        btn = []
         for file_num, file in enumerate(files, start=1):
-            files_link += f"""<b>\n\n{file_num}. <a href=https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}>[{get_size(file.file_size)}] {file.file_name}</a></b>"""
+            files_link += f"<b>\n\n{file_num}. <a href=https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}>[{get_size(file.file_size)}] {file.file_name}</a></b>"
     else:
-        btn = [[
-            InlineKeyboardButton(text=f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')
-        ]
-            for file in files
-        ]
-    if settings['shortlink']:
-        btn.insert(0,
-            [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))]
-        )
-    else:
-        btn.insert(0,[
-            [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", callback_data=f"send_all#{key}"),
-            InlineKeyboardButton("📰 ʟᴀɴɢᴜᴀɢᴇs 📰", callback_data=f"languages#{key}#{req}#{offset}")],
-            ])
-        btn.insert(1, [
-            InlineKeyboardButton("✨ ǫᴜᴀʟɪᴛʏ 🤡", callback_data=f"qualities#{key}#{offset}#{req}"),
-            InlineKeyboardButton("🚩 ʏᴇᴀʀ ⌛", callback_data=f"years#{key}#{offset}#{req}"),
+        btn = [[InlineKeyboardButton(f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f'file#{file.file_id}')] for file in files]
+    
+    btn.insert(0, [InlineKeyboardButton("♻️ Send All", callback_data=f"send_all#{key}")])
+    btn.insert(1, [InlineKeyboardButton("📰 Languages", callback_data=f"languages#{key}#{req}#{offset}")])
+    btn.insert(2, [InlineKeyboardButton("✨ Quality", callback_data=f"qualities#{key}#{offset}#{req}")])
+    btn.insert(3, [InlineKeyboardButton("🚩 Year", callback_data=f"years#{key}#{offset}#{req}")])
+    btn.insert(4, [InlineKeyboardButton("✨ Choose Season", callback_data=f"seasons#{key}#{offset}#{req}")])
+    
+    if not n_offset:
+        btn.append([InlineKeyboardButton("🚸 No More Pages 🚸", callback_data="buttons")])
+    elif offset == 0:
+        btn.append([
+            InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages"),
+            InlineKeyboardButton("Next ⪼", callback_data=f"season_search#{season}#{key}#{n_offset}#{orginal_offset}#{req}")
         ])
-        btn.insert(2, [
-            InlineKeyboardButton("✨ ᴄʜᴏᴏsᴇ season🍿", callback_data=f"seasons#{key}#{offset}#{req}")
+    elif n_offset == 0:
+        btn.append([
+            InlineKeyboardButton("⪻ Back", callback_data=f"season_search#{season}#{key}#{offset - int(MAX_BTN)}#{orginal_offset}#{req}"),
+            InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages")
+        ])
+    else:
+        btn.append([
+            InlineKeyboardButton("⪻ Back", callback_data=f"season_search#{season}#{key}#{offset - int(MAX_BTN)}#{orginal_offset}#{req}"),
+            InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages"),
+            InlineKeyboardButton("Next ⪼", callback_data=f"season_search#{season}#{key}#{n_offset}#{orginal_offset}#{req}")
         ])
     
-    if n_offset== '':
-        btn.append(
-            [InlineKeyboardButton(text="🚸 ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇs 🚸", callback_data="buttons")]
-        )
-    elif n_offset == 0:
-        btn.append(
-            [InlineKeyboardButton("⪻ ʙᴀᴄᴋ", callback_data=f"season_search#{season}#{key}#{offset- int(MAX_BTN)}#{orginal_offset}#{req}"),
-             InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages",),
-            ])
-    elif offset==0:
-        btn.append(
-            [InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}",callback_data="pages",),
-             InlineKeyboardButton("ɴᴇxᴛ ⪼", callback_data=f"season_search#{season}#{key}#{n_offset}#{orginal_offset}#{req}"),])
-    else:
-        btn.append(
-            [InlineKeyboardButton("⪻ ʙᴀᴄᴋ", callback_data=f"season_search#{season}#{key}#{offset- int(MAX_BTN)}#{orginal_offset}#{req}"),
-             InlineKeyboardButton(f"{math.ceil(offset / int(MAX_BTN)) + 1}/{math.ceil(total / int(MAX_BTN))}", callback_data="pages",),
-             InlineKeyboardButton("ɴᴇxᴛ ⪼", callback_data=f"season_search#{season}#{key}#{n_offset}#{orginal_offset}#{req}"),])
-
-    btn.append([
-        InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{orginal_offset}"),])
+    btn.append([InlineKeyboardButton("⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{orginal_offset}")])
+    
     await query.message.edit_text(
-    str(cap) + str(files_link) + str(del_msg),
-    disable_web_page_preview=True,
-    parse_mode=enums.ParseMode.HTML,
-    reply_markup=InlineKeyboardMarkup(btn) if btn else None
-)
+        str(cap) + str(files_link) + str(del_msg),
+        disable_web_page_preview=True,
+        parse_mode=enums.ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(btn) if btn else None
+    )
 
 @Client.on_callback_query(filters.regex(r"^years#"))
 async def years_cb_handler(client: Client, query: CallbackQuery):
