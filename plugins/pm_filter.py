@@ -601,10 +601,10 @@ async def season_search(client: Client, query: CallbackQuery):
     btn.append([
         InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{orginal_offset}"),])
     await query.message.edit_text(
-    str(cap) + str(files_link) + str(del_msg),  # ✅ Ensure all are strings
-    disable_web_page_preview=True, 
-    parse_mode=enums.ParseMode.HTML, 
-    reply_markup=InlineKeyboardMarkup(btn)
+    str(cap) + str(files_link) + str(del_msg),
+    disable_web_page_preview=True,
+    parse_mode=enums.ParseMode.HTML,
+    reply_markup=InlineKeyboardMarkup(btn) if btn else None
 )
 
 @Client.on_callback_query(filters.regex(r"^years#"))
@@ -905,34 +905,47 @@ async def cb_handler(client: Client, query: CallbackQuery):
             user = query.message.reply_to_message.from_user.id
         except:
             user = query.from_user.id
+        
         if int(user) != 0 and query.from_user.id != int(user):
             return await query.answer(f"Hello {query.from_user.first_name},\nThis Is Not For You!", show_alert=True)
+        
         await query.answer("Closed!")
         await query.message.delete()
+        
         try:
             await query.message.reply_to_message.delete()
         except:
             pass
   
-    if query.data.startswith("file"):
-        ident, file_id = query.data.split("#")
-        user = query.message.reply_to_message.from_user.id
-        if int(user) != 0 and query.from_user.id != int(user):
-            return await query.answer(f"Hello {query.from_user.first_name},\nDon't Click Other Results!", show_alert=True)
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file_id}")
-        
+    elif query.data.startswith("file"):
+        try:
+            data_parts = query.data.split("#")
+            if len(data_parts) < 2:
+                print("Invalid callback data:", query.data)
+                return
+            
+            ident, file_id = data_parts[:2]
+            user = query.message.reply_to_message.from_user.id
+            
+            if int(user) != 0 and query.from_user.id != int(user):
+                return await query.answer(f"Hello {query.from_user.first_name},\nDon't Click Other Results!", show_alert=True)
+            
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file_id}")
+        except Exception as e:
+            print(f"Error in file callback: {e}")
+    
     elif query.data == "get_trail":
         user_id = query.from_user.id
         free_trial_status = await db.get_free_trial_status(user_id)
+        
         if not free_trial_status:            
             await db.give_free_trail(user_id)
             new_text = "**ʏᴏᴜ ᴄᴀɴ ᴜsᴇ ꜰʀᴇᴇ ᴛʀᴀɪʟ ꜰᴏʀ 5 ᴍɪɴᴜᴛᴇs ꜰʀᴏᴍ ɴᴏᴡ 😀\n\nआप अब से 5 मिनट के लिए निःशुल्क ट्रायल का उपयोग कर सकते हैं 😀**"        
             await query.message.edit_text(text=new_text)
-            return
         else:
             new_text= "**🤣 you already used free now no more free trail. please buy subscription here are our 👉 /plans**"
             await query.message.edit_text(text=new_text)
-            return
+        return
             
     elif query.data == "buy_premium":
         btn = [[
@@ -948,18 +961,30 @@ async def cb_handler(client: Client, query: CallbackQuery):
         return 
                 
     elif query.data.startswith("checksub"):
-        ident, mc = query.data.split("#")
-        settings = await get_settings(int(mc.split("_", 2)[1]))
-        btn = await is_subscribed(client, query, settings['fsub'])
-        if btn:
-            await query.answer(f"Hello {query.from_user.first_name},\nPlease join my updates channel and try again.", show_alert=True)
-            btn.append(
-                [InlineKeyboardButton("🔁 Try Again 🔁", callback_data=f"checksub#{mc}")]
-            )
-            await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
-            return
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start={mc}")
-        await query.message.delete()
+        try:
+            data_parts = query.data.split("#")
+            if len(data_parts) < 2:
+                print("Invalid callback data:", query.data)
+                return
+            
+            ident, mc = data_parts[:2]
+            settings = await get_settings(int(mc.split("_", 2)[1]))
+            btn = await is_subscribed(client, query, settings['fsub'])
+            
+            if btn:
+                await query.answer(f"Hello {query.from_user.first_name},\nPlease join my updates channel and try again.", show_alert=True)
+                
+                # 🛠️ Fix: btn.insert ke liye correct syntax
+                btn.insert(0, [InlineKeyboardButton("🔁 Try Again 🔁", callback_data=f"checksub#{mc}")])
+                
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
+                return
+            
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start={mc}")
+            await query.message.delete()
+        
+        except Exception as e:
+            print(f"Error in checksub callback: {e}")
 
     elif query.data.startswith("unmuteme"):
         ident, chatid = query.data.split("#")
