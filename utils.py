@@ -32,8 +32,8 @@ class temp(object):
     USERS_CANCEL = False
     GROUPS_CANCEL = False
     BOT = None
-    FILES_ID = {}  # ✅ Add this line
-
+    FILES_ID = {}  # ✅ Fix for FILES_ID error
+    CHAT = {}  # ✅ Fix for CHAT error
 async def is_subscribed(bot, query, channel):
     btn = []
     for id in channel:
