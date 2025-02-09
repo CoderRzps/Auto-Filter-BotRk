@@ -32,6 +32,7 @@ class temp(object):
     USERS_CANCEL = False
     GROUPS_CANCEL = False
     BOT = None
+    FILES_ID = {}  # ✅ Add this line
 
 async def is_subscribed(bot, query, channel):
     btn = []
