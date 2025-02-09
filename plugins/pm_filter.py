@@ -192,7 +192,7 @@ async def pm_search(client, message):
                 InlineKeyboardButton("Here", url=FILMS_LINK)
             ]]
             await message.reply_text(f'Total {total} results found in this group', reply_markup=InlineKeyboardMarkup(btn))
-
+            
 @Client.on_callback_query(filters.regex(r"^next"))
 async def next_page(bot, query):
     ident, req, key, offset = query.data.split("_")
@@ -233,8 +233,8 @@ async def next_page(bot, query):
         for file_num, file in enumerate(files, start=offset + 1):
             files_link += f"""<b>\n\n{file_num}. <a href=https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file.file_id}>[{get_size(file.file_size)}] {file.file_name}</a></b>"""
     else:
-        btn = [[InlineKeyboardButton(f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f"file#{file.file_id}")]
-               for file in files]
+        btn.extend([[InlineKeyboardButton(f"📂 {get_size(file.file_size)} {file.file_name}", callback_data=f"file#{file.file_id}")]
+                    for file in files])
 
     if settings["shortlink"]:
         btn.insert(0, [
@@ -251,35 +251,29 @@ async def next_page(bot, query):
     ])
 
     prev_offset = max(0, offset - MAX_BTN) if offset > 0 else None
-    page_info = f"{math.ceil(offset / MAX_BTN) + 1}/{math.ceil(total / MAX_BTN)}"
+    page_info = f"{math.ceil((offset + 1) / MAX_BTN)}/{math.ceil(total / MAX_BTN)}"
 
-    if n_offset == 0:
-        btn.append([
-            InlineKeyboardButton("« Back", callback_data=f"next_{req}_{key}_{prev_offset}") if prev_offset else None,
-            InlineKeyboardButton(page_info, callback_data="buttons")
-        ])
-    else:
-        btn.append([
-            InlineKeyboardButton("« Back", callback_data=f"next_{req}_{key}_{prev_offset}") if prev_offset else None,
-            InlineKeyboardButton(page_info, callback_data="buttons"),
-            InlineKeyboardButton("Next »", callback_data=f"next_{req}_{key}_{n_offset}")
-        ])
+    navigation_buttons = []
+    
+    if prev_offset is not None:
+        navigation_buttons.append(InlineKeyboardButton("« Back", callback_data=f"next_{req}_{key}_{prev_offset}"))
 
+    navigation_buttons.append(InlineKeyboardButton(page_info, callback_data="buttons"))
+
+    if n_offset != 0:
+        navigation_buttons.append(InlineKeyboardButton("Next »", callback_data=f"next_{req}_{key}_{n_offset}"))
+
+    btn.append(navigation_buttons)
     btn.append([InlineKeyboardButton("🚫 Close 🚫", callback_data="close_data")])
-
-    # **Ensure btn is not empty**
-    if not btn:
-        btn = [[InlineKeyboardButton("🚫 Close 🚫", callback_data="close_data")]]
 
     try:
         await query.message.edit_text(
             cap + files_link + del_msg,
-            reply_markup=InlineKeyboardMarkup([b for b in btn if b]),  
+            reply_markup=InlineKeyboardMarkup(btn) if btn else None,
             disable_web_page_preview=True
         )
     except MessageNotModified:
         pass
-
 
 @Client.on_callback_query(filters.regex(r"^languages"))
 async def languages_cb_handler(client: Client, query: CallbackQuery):
