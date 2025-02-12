@@ -288,6 +288,8 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
     await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ʟᴀɴɢᴜᴀɢᴇ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
 
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 @Client.on_callback_query(filters.regex(r"^lang_search"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key, offset, req = query.data.split("#")
@@ -295,7 +297,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     if int(req) != query.from_user.id:
         return await query.answer(f"Hello {query.from_user.first_name},\nDon't Click Other Results!", show_alert=True)
 
-    search = BUTTONS.get(key)
+    search = BUTTONS.get(key)  # Ensure BUTTONS is correctly imported
     cap = CAP.get(key)
 
     if not search:
@@ -306,7 +308,6 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     if not files:
         return await query.answer(f"Sorry '{lang.title()}' language files not found 😕", show_alert=True)
 
-    temp.FILES[key] = files
     settings = await get_settings(query.message.chat.id)
     
     del_msg = f"\n\n<b>⚠️ This message will be auto-deleted after <code>{get_readable_time(DELETE_TIME)}</code> to avoid copyright issues</b>" if settings["auto_delete"] else ''
@@ -362,8 +363,12 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
         InlineKeyboardButton(text="⪻ Back to Main Page", callback_data=f"next_{req}_{key}_{offset}")
     ])
 
-    # ✅ Fix: Convert btn list to InlineKeyboardMarkup and pass correctly
-    await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+    # ✅ Fix: Check if new text is different before editing
+    new_text = cap + files_link + del_msg
+    if query.message.text != new_text:
+        await query.message.edit_text(new_text, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+    else:
+        await query.answer("Nothing to update!", show_alert=False)
 
 @Client.on_callback_query(filters.regex(r"^lang_next"))
 async def lang_next_page(bot, query):
